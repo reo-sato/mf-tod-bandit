@@ -19,17 +19,7 @@ const Instr   = window.jsPsychInstructions;
 // ここを置き換え：const jsPsych = initJsPsych({...}) → 
 const jsPsych = INIT({
   display_element: 'jspsych-target',
-  on_finish: async () => { /* 以降そのまま */ }
-});
-
-// 以降で type 指定している所も置き換え：
-//   type: jsPsychInstructions → type: Instr
-//   type: jsPsychHtmlButtonResponse → type: HtmlBtn
-
-  
-  const jsPsych = initJsPsych({
-    display_element: 'jspsych-target',
-    on_finish: async () => {
+  on_finish: async () => {
       const total = rows.reduce((s,r)=>s + (r.reward||0), 0);
       const csv = toCSV(rows);
       download(`bandit_${PID}_${SESSION}.csv`, csv);
