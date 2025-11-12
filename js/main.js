@@ -11,7 +11,22 @@ document.addEventListener('DOMContentLoaded', () => {
   console.log('initJsPsych:', typeof initJsPsych,
               'HtmlBtn:', typeof jsPsychHtmlButtonResponse,
               'Instr:', typeof jsPsychInstructions);
+// UMD/ESM 両対応の参照を作る
+const INIT   = (window.jsPsychModule && window.jsPsychModule.initJsPsych) || window.initJsPsych;
+const HtmlBtn = window.jsPsychHtmlButtonResponse;
+const Instr   = window.jsPsychInstructions;
 
+// ここを置き換え：const jsPsych = initJsPsych({...}) → 
+const jsPsych = INIT({
+  display_element: 'jspsych-target',
+  on_finish: async () => { /* 以降そのまま */ }
+});
+
+// 以降で type 指定している所も置き換え：
+//   type: jsPsychInstructions → type: Instr
+//   type: jsPsychHtmlButtonResponse → type: HtmlBtn
+
+  
   const jsPsych = initJsPsych({
     display_element: 'jspsych-target',
     on_finish: async () => {
