@@ -1,5 +1,5 @@
 // js/main.js
-export function runTask({ initJsPsych, plugins, utils }){
+function runTask({ initJsPsych, plugins, utils }){
   const { htmlButtonResponse, instructions } = plugins;
   const { getParam, rwStep, toCSV, download } = utils;
 
