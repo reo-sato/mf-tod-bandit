@@ -5,7 +5,7 @@ function getParam(name, defaultValue = null){
 }
 
 // 反射境界付きランダムウォーク（0.25–0.75）
-export function rwStep(p, step){
+function rwStep(p, step){
   const s = Math.random() < 0.5 ? -step : step;
   let v = p + s;
   const lo = 0.25, hi = 0.75;
@@ -14,7 +14,7 @@ export function rwStep(p, step){
   return Math.max(lo, Math.min(hi, v));
 }
 
-export function toCSV(rows){
+function toCSV(rows){
   const esc = (v)=>`"${String(v).replace(/"/g,'""')}"`;
   const header = Object.keys(rows[0]);
   const lines = [header.map(esc).join(",")];
@@ -22,7 +22,7 @@ export function toCSV(rows){
   return lines.join("\n");
 }
 
-export function download(filename, text){
+function download(filename, text){
   const blob = new Blob([text], {type: 'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
