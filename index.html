@@ -8,23 +8,18 @@
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
+  <noscript>この実験を実行するには JavaScript を有効にしてください。</noscript>
   <div id="jspsych-target"></div>
 
-  <!-- すべて ES Modules として読み込む -->
-  <script type="module">
-    import { initJsPsych } from 'https://unpkg.com/jspsych@7.3.3/dist/index.js';
-    import htmlButtonResponse from 'https://unpkg.com/@jspsych/plugin-html-button-response@1.2.0/dist/index.js';
-    import instructions       from 'https://unpkg.com/@jspsych/plugin-instructions@1.2.0/dist/index.js';
-    import preload            from 'https://unpkg.com/@jspsych/plugin-preload@1.2.0/dist/index.js';
+  <!-- jsPsych core & plugins（すべて UMD 版に統一） -->
+  <script src="https://unpkg.com/jspsych@7.3.3/dist/index.umd.js" defer></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.2.0/dist/index.umd.js" defer></script>
+  <script src="https://unpkg.com/@jspsych/plugin-instructions@1.2.0/dist/index.umd.js" defer></script>
+  <script src="https://unpkg.com/@jspsych/plugin-preload@1.2.0/dist/index.umd.js" defer></script>
+  <!-- （必要なら）<script src="https://unpkg.com/@jspsych/plugin-survey-multi-choice@1.2.0/dist/index.umd.js" defer></script> -->
 
-    import * as utils from './js/utils.js';
-    import { runTask } from './js/main.js';
-
-    runTask({
-      initJsPsych,
-      plugins: { htmlButtonResponse, instructions, preload },
-      utils
-    });
-  </script>
+  <!-- app scripts（そのままでOK） -->
+  <script src="js/utils.js" defer></script>
+  <script src="js/main.js" defer></script>
 </body>
 </html>
