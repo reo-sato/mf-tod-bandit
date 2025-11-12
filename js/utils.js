@@ -1,5 +1,5 @@
 // js/utils.js
-export function getParam(name, defaultValue = null){
+function getParam(name, defaultValue = null){
   const params = new URLSearchParams(window.location.search);
   return params.has(name) ? params.get(name) : defaultValue;
 }
