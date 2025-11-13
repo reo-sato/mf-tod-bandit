@@ -1,0 +1,5 @@
+vendor/
+  jspsych/index.umd.js
+  plugins/html-button-response/index.umd.js
+  plugins/instructions/index.umd.js
+  plugins/preload/index.umd.js
