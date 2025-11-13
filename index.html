@@ -4,32 +4,31 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>2-Arm Bandit (0/1 Reward)</title>
-  <link rel="icon" href="data:,"><!-- favicon 404を抑止 -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jspsych@8.2.2/css/jspsych.css" />
+  <link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="stylesheet" href="https://unpkg.com/jspsych@8.2.2/css/jspsych.css" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
   <noscript>この実験を実行するには JavaScript を有効にしてください。</noscript>
   <div id="jspsych-target"></div>
 
- <link rel="stylesheet" href="https://unpkg.com/jspsych@8.2.2/css/jspsych.css">
+  <!-- jsPsych v8 + plugins（UMD。deferは付けない＝先に実行） -->
+  <script src="https://unpkg.com/jspsych@8.2.2"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-button-response@2.2.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-instructions@2.1.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-preload@2.1.0"></script>
 
-<script src="https://unpkg.com/jspsych@8.2.2"></script>
-<script src="https://unpkg.com/@jspsych/plugin-html-button-response@2.2.0"></script>
-<script src="https://unpkg.com/@jspsych/plugin-instructions@2.1.0"></script>
-<script src="https://unpkg.com/@jspsych/plugin-preload@2.1.0"></script>
-<script>
-  console.log('smoke',
-    typeof initJsPsych,
-    typeof jsPsychHtmlButtonResponse,
-    typeof jsPsychInstructions);
-</script>
+  <!-- smokeテスト（OKなら function function function と出ます） -->
+  <script>
+    console.log('smoke',
+      typeof initJsPsych,
+      typeof jsPsychHtmlButtonResponse,
+      typeof jsPsychInstructions);
+  </script>
 
-
-<script src="js/utils.js?v=10" defer></script>
-<script src="js/main.js?v=10" defer></script>
-
-
-
+  <!-- 自作（deferでOK） -->
+  <script src="js/utils.js?v=10" defer></script>
+  <script src="js/main.js?v=10" defer></script>
 </body>
 </html>
