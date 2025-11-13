@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const el = document.getElementById('jspsych-target');
     if (el){
       el.innerHTML =
-        '<div class="jspsych-content"><p style="color:#f87171">jsPsychの読み込みに失敗しました。CDNのURL/ネットワーク/拡張機能（スクリプトブロッカー）をご確認ください３。</p></div>';
+        '<div class="jspsych-content"><p style="color:#f87171">jsPsychの読み込みに失敗しました。CDNのURL/ネットワーク/拡張機能（スクリプトブロッカー）をご確認ください４。</p></div>';
     }
     return;
   }
