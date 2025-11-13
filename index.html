@@ -4,23 +4,22 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>2-Arm Bandit (0/1 Reward)</title>
-  <link rel="stylesheet" href="https://unpkg.com/jspsych@7.3.3/css/jspsych.css" />
+  <link rel="icon" href="data:,"><!-- favicon 404を抑止 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jspsych@8.2.2/css/jspsych.css" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
   <noscript>この実験を実行するには JavaScript を有効にしてください。</noscript>
   <div id="jspsych-target"></div>
 
- <!-- jsPsych core & plugins（UMD; defer なし） -->
-<script src="https://cdn.jsdelivr.net/npm/jspsych@7.3.3/dist/index.umd.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-html-button-response@1.2.0/dist/index.umd.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-instructions@1.2.0/dist/index.umd.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-preload@1.2.0/dist/index.umd.js"></script>
+  <!-- jsPsych core & plugins（UMD／v8；defer なし＝先に必ず実行） -->
+  <script src="https://cdn.jsdelivr.net/npm/jspsych@8.2.2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-html-button-response@2.2.0/dist/index.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-instructions@2.1.0/dist/index.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-preload@2.1.0/dist/index.umd.js"></script>
 
-<!-- 自作（defer のまま。キャッシュ破り推奨） -->
-<script src="js/utils.js?v=6" defer></script>
-<script src="js/main.js?v=6" defer></script>
-
-
+  <!-- アプリ本体（deferのまま） -->
+  <script src="js/utils.js?v=7" defer></script>
+  <script src="js/main.js?v=7" defer></script>
 </body>
 </html>
