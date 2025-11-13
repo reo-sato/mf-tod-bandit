@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     const el = document.getElementById('jspsych-target');
     if (el) el.innerHTML =
-      '<div class="jspsych-content"><p style="color:#f87171">jsPsychの読み込みに失敗しました（CDN/ネットワーク/拡張機能を確認）。</p></div>';
+      '<div class="jspsych-content"><p style="color:#f87171">jsPsychの読み込みに失敗しました（CDN/ネットワーク/拡張機能を確認）1。</p></div>';
     return;
   }
 
