@@ -11,15 +11,16 @@
   <noscript>この実験を実行するには JavaScript を有効にしてください。</noscript>
   <div id="jspsych-target"></div>
 
-  <!-- jsPsych core & plugins（UMD；deferなし=先に必ず実行） -->
-<script src="https://unpkg.com/jspsych@7.3.3/dist/index.umd.js"></script>
-<script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.2.0/dist/index.umd.js"></script>
-<script src="https://unpkg.com/@jspsych/plugin-instructions@1.2.0/dist/index.umd.js"></script>
-<script src="https://unpkg.com/@jspsych/plugin-preload@1.2.0/dist/index.umd.js"></script>
+ <!-- jsPsych core & plugins（UMD; defer なし） -->
+<script src="https://cdn.jsdelivr.net/npm/jspsych@7.3.3/dist/index.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-html-button-response@1.2.0/dist/index.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-instructions@1.2.0/dist/index.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-preload@1.2.0/dist/index.umd.js"></script>
 
-<!-- アプリ本体（deferのまま） -->
-<script src="js/utils.js?v=4" defer></script>
-<script src="js/main.js?v=4" defer></script>
+<!-- 自作（defer のまま。キャッシュ破り推奨） -->
+<script src="js/utils.js?v=6" defer></script>
+<script src="js/main.js?v=6" defer></script>
+
 
 </body>
 </html>
