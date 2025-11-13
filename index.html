@@ -12,11 +12,19 @@
   <noscript>この実験を実行するには JavaScript を有効にしてください。</noscript>
   <div id="jspsych-target"></div>
 
-  <!-- jsPsych core & plugins — v8 UMD（defer なし） -->
-<script src="vendor/jspsych/index.umd.js"></script>
-<script src="vendor/plugins/html-button-response/index.umd.js"></script>
-<script src="vendor/plugins/instructions/index.umd.js"></script>
-<script src="vendor/plugins/preload/index.umd.js"></script>
+ <link rel="stylesheet" href="https://unpkg.com/jspsych@8.2.2/css/jspsych.css">
+
+<script src="https://unpkg.com/jspsych@8.2.2"></script>
+<script src="https://unpkg.com/@jspsych/plugin-html-button-response@2.2.0"></script>
+<script src="https://unpkg.com/@jspsych/plugin-instructions@2.1.0"></script>
+<script src="https://unpkg.com/@jspsych/plugin-preload@2.1.0"></script>
+<script>
+  console.log('smoke',
+    typeof initJsPsych,
+    typeof jsPsychHtmlButtonResponse,
+    typeof jsPsychInstructions);
+</script>
+
 
 <script src="js/utils.js?v=10" defer></script>
 <script src="js/main.js?v=10" defer></script>
