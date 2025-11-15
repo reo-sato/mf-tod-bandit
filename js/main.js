@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const instructions = {
     type: jsPsychInstructions,
     pages: [
-      `<h2>2アーム課題</h2>
+      `<h2>2アーム課題1</h2>
        <p>左右どちらかを選び、当たり（1）をできるだけ多く集めてください。</p>
        <p>各アームの当たり確率は時間とともに <b>ゆっくり変化します</b>（0.25–0.75）。</p>
        <p>報酬は <b>当たり=1 / はずれ=0</b> です。</p>`,
