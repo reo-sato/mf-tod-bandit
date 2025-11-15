@@ -13,25 +13,14 @@
   <noscript>この実験を実行するには JavaScript を有効にしてください。</noscript>
   <div id="jspsych-target"></div>
 
-  <!-- jsPsych v8（UMD） -->
-<script src="https://unpkg.com/jspsych@8.2.2"></script>
+  <!-- jsPsych v8 + plugins（UMD, ルート指定。defer なし＝先に確実に実行） -->
+  <script src="https://unpkg.com/jspsych@8.2.2"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-button-response@2.1.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-instructions@2.1.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-preload@2.1.0"></script>
 
-<!-- plugins（v8系） -->
-<script src="https://unpkg.com/@jspsych/plugin-html-button-response@2.1.0/dist/index.browser.js"></script>
-<script src="https://unpkg.com/@jspsych/plugin-instructions@2.1.0"></script>
-<script src="https://unpkg.com/@jspsych/plugin-preload@2.1.0"></script>
-
-
-  <!-- smokeテスト（OKなら function function function と出ます） -->
-  <script>
-    console.log('smoke',
-      typeof initJsPsych,
-      typeof jsPsychHtmlButtonResponse,
-      typeof jsPsychInstructions);
-  </script>
-
-  <!-- 自作（deferでOK） -->
-  <script src="js/utils.js?v=10" defer></script>
-  <script src="js/main.js?v=10" defer></script>
+  <!-- アプリ本体（defer のまま） -->
+  <script src="js/utils.js" defer></script>
+  <script src="js/main.js" defer></script>
 </body>
 </html>
