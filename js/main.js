@@ -2,15 +2,16 @@
    - 図形刺激で左右を視覚的に差別化（左=○ / 右=△）
    - セッション 'instruction'（または instr/instructions）に対応
    - 選択確認(ACK)を追加（中立チェックを短時間表示）
-   - NEW: インストラクション内に「確率がゆっくり変動するデモ」を挿入（本番では非表示）
+   - NEW: インストラクションに「確率がゆっくり変動する折れ線デモ」を挿入（本番では非表示）
 */
 
 const CONFIG = {
   N_TRIALS: 400,          // 本試行
   INSTR_PRACTICE_N: 10,   // インストラクション時の練習試行（0なら説明のみ）
   STEP: 0.03,             // 環境確率ランダムウォーク幅（本番）
-  PROB_DEMO_MS: 5000,     // ★ 確率デモの表示時間（ms）
+  PROB_DEMO_MS: 6000,     // ★ デモの表示時間（ms）
   PROB_DEMO_STEP: 0.025,  // ★ デモ用ランダムウォーク幅（見やすさ重視）
+  PROB_DEMO_DT: 120,      // ★ デモ更新間隔（ms）
   ACK_MS: 250,            // 選択確認(ACK)の表示時間（ms）
   FEEDBACK_MS: 700,       // 結果フィードバック表示（ms）
   ITI_MS: 400,            // インタートライアル（ms）
@@ -51,12 +52,10 @@ function pidParity(pidStr) {
   for (let i=0;i<pidStr.length;i++) s = (s + pidStr.charCodeAt(i)) & 0xffff;
   return s % 2;
 }
-// 左右の図形を決める（既定：左○/右△）
 const STIM_MAP = (() => {
   const swap = CONFIG.COUNTERBALANCE_BY_PID && pidParity(PID) === 1;
-  return swap
-    ? { left: 'triangle', right: 'circle' }
-    : { left: 'circle', right: 'triangle' };
+  return swap ? { left: 'triangle', right: 'circle' }
+              : { left: 'circle',  right: 'triangle' };
 })();
 
 function svgFor(side){ return (STIM_MAP[side] === 'circle') ? svgCircle() : svgTriangle(); }
@@ -112,7 +111,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const total = rows.reduce((s,r)=>s+(r.reward||0),0);
       const payload = { pid: PID, session: SESSION, total, n: TOTAL_TRIALS, trials: rows };
       let msg = '';
-
       try{
         if (USE_FIREBASE) {
           const id = await saveToFirebase(payload);
@@ -168,7 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
      <p>選択後は<b>短い確認画面</b>（中立色のチェック）が表示された後、結果（✓ +1 / × 0）が提示されます。</p>
      ${countLine}
      ${(SESSION==='instruction' && CONFIG.PROB_DEMO_MS>0)
-       ? '<p>次の画面で「確率がゆっくり変化する様子」の<b>デモ</b>を数秒だけ表示します（本番では確率は表示されません）。</p>'
+       ? '<p>次の画面で「確率がゆっくり変化する様子」の<b>折れ線デモ</b>を数秒表示します（本番では確率は表示されません）。</p>'
        : '<p>準備ができたら「次へ」を押してください。</p>'}`
   ];
 
@@ -180,56 +178,102 @@ document.addEventListener('DOMContentLoaded', () => {
     button_label_previous: '戻る'
   };
 
-  // --- 確率デモ（instruction セッションのみ） ---
+  // --- 確率デモ（instruction セッションのみ／SVG 折れ線） ---
   const probDemoTrial = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: function(){
-      // デモ用UI（本番とは独立）
+      // SVG 折れ線チャート（独立の RW。0.25–0.75 のレンジを軸に明示）
       return `
-        <div class="small">確率が時間とともにゆっくり変化するデモ（本番では確率は非表示）</div>
-        <div class="choice-row" style="gap:96px; margin-top:18px;">
-          <div class="col">
-            <div class="stim-box">${svgFor('left')}</div>
-            <div class="prob-track"><div id="fillL" class="prob-fill" style="width:50%"></div></div>
-            <div class="prob-label">デモ確率（左）: <span id="txtL">0.50</span></div>
-          </div>
-          <div class="col">
-            <div class="stim-box">${svgFor('right')}</div>
-            <div class="prob-track"><div id="fillR" class="prob-fill" style="width:50%"></div></div>
-            <div class="prob-label">デモ確率（右）: <span id="txtR">0.50</span></div>
+        <div class="small">確率が時間とともにゆっくり変化する<b>デモ</b>（本番では確率は非表示）</div>
+        <div class="chart-wrap">
+          <svg id="probDemo" viewBox="0 0 680 260" role="img" aria-label="probability demo line chart">
+            <!-- プロット領域（パディング） -->
+            <g id="plot" transform="translate(56,16)">
+              <!-- グリッド（y=0.75,0.50,0.25）-->
+              <g class="grid">
+                <line x1="0" y1="20"  x2="600" y2="20"></line>
+                <line x1="0" y1="110" x2="600" y2="110"></line>
+                <line x1="0" y1="200" x2="600" y2="200"></line>
+              </g>
+              <!-- 軸ラベル -->
+              <text class="axisLabel" x="-8" y="24"  text-anchor="end">0.75</text>
+              <text class="axisLabel" x="-8" y="114" text-anchor="end">0.50</text>
+              <text class="axisLabel" x="-8" y="204" text-anchor="end">0.25</text>
+              <!-- 折れ線 2 本 -->
+              <polyline id="lineL" class="lineL" points=""></polyline>
+              <polyline id="lineR" class="lineR" points=""></polyline>
+              <!-- x 軸 -->
+              <line class="grid" x1="0" y1="200" x2="600" y2="200"></line>
+            </g>
+          </svg>
+          <div class="legend">
+            <span class="swatchL" aria-hidden="true"></span><span>左（${STIM_MAP.left==='circle'?'○':'△'}）</span>
+            <span class="swatchR" aria-hidden="true"></span><span>右（${STIM_MAP.right==='circle'?'○':'△'}）</span>
           </div>
         </div>
-        <div class="small" style="margin-top:12px;">この画面は<b>デモ</b>です。数秒後に自動で次へ進みます。</div>
+        <div class="small" style="margin-top:8px;">この画面は<b>デモ</b>です。数秒後に自動で次へ進みます。</div>
       `;
     },
     choices: "NO_KEYS",
     trial_duration: CONFIG.PROB_DEMO_MS,
     on_load: () => {
-      // デモ用の独立 RW（本番の pL/pR と無関係）
+      // デモ用の独立ランダムウォーク（本番の pL/pR とは無関係）
       let dl = 0.5, dr = 0.5;
       const step = CONFIG.PROB_DEMO_STEP;
-      const $fillL = document.getElementById('fillL');
-      const $fillR = document.getElementById('fillR');
-      const $txtL = document.getElementById('txtL');
-      const $txtR = document.getElementById('txtR');
+      const dt   = CONFIG.PROB_DEMO_DT;
 
-      function clamp(v){ return Math.max(0.25, Math.min(0.75, v)); }
-      function stepOnce(v){
+      // プロット領域の設定
+      const plotW = 600, plotH = 200; // viewBox 内（transform 後）のサイズ
+      // y 座標変換：0.25(bottom)=200, 0.75(top)=20（マージン 20px）
+      const yTop = 20, yBot = 200, range = 0.5; // 0.25–0.75
+      const yMap = (p)=> {
+        const t = (p - 0.25) / range; // 0..1
+        return yBot - t * (yBot - yTop);
+      };
+
+      // ポイントバッファ
+      const maxPts = Math.max(10, Math.floor(CONFIG.PROB_DEMO_MS / dt));
+      const ptsL = [];
+      const ptsR = [];
+
+      const $lineL = document.getElementById('lineL');
+      const $lineR = document.getElementById('lineR');
+
+      function reflectStep(v){
         const s = (Math.random()<0.5 ? -step : step);
         let nv = v + s;
         if (nv < 0.25) nv = 0.25 + (0.25 - nv);
         if (nv > 0.75) nv = 0.75 - (nv - 0.75);
-        return clamp(nv);
+        return Math.min(0.75, Math.max(0.25, nv));
       }
 
-      window.__probDemoTimer = setInterval(()=>{
-        dl = stepOnce(dl);
-        dr = stepOnce(dr);
-        if ($fillL) $fillL.style.width = `${Math.round(dl*100)}%`;
-        if ($fillR) $fillR.style.width = `${Math.round(dr*100)}%`;
-        if ($txtL) $txtL.textContent = dl.toFixed(2);
-        if ($txtR) $txtR.textContent = dr.toFixed(2);
-      }, 120);
+      // 更新
+      let t = 0;
+      function tick(){
+        dl = reflectStep(dl);
+        dr = reflectStep(dr);
+
+        if (ptsL.length >= maxPts) { ptsL.shift(); ptsR.shift(); }
+        ptsL.push(dl);
+        ptsR.push(dr);
+
+        const N = ptsL.length;
+        const pointsL = [];
+        const pointsR = [];
+        for (let i=0; i<N; i++){
+          const x = (i / Math.max(1, N-1)) * plotW;
+          pointsL.push( `${x},${yMap(ptsL[i]).toFixed(2)}` );
+          pointsR.push( `${x},${yMap(ptsR[i]).toFixed(2)}` );
+        }
+        if ($lineL) $lineL.setAttribute('points', pointsL.join(' '));
+        if ($lineR) $lineR.setAttribute('points', pointsR.join(' '));
+
+        t += dt;
+      }
+
+      // 初期化してタイマー開始
+      tick();
+      window.__probDemoTimer = setInterval(tick, dt);
     },
     on_finish: () => {
       if (window.__probDemoTimer){
@@ -275,7 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
           stim_right: STIM_MAP.right
         });
 
-        // 次試行に向けて本番用 RW を更新
+        // 本番用 RW を更新
         pL = rwStep(pL, CONFIG.STEP);
         pR = rwStep(pR, CONFIG.STEP);
 
@@ -289,7 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- タイムライン ---
   const timeline = [instructions];
 
-  // instruction セッションのときだけ、確率デモを挿入
+  // instruction セッションのときだけ、折れ線デモを挿入
   if (SESSION === 'instruction' && CONFIG.PROB_DEMO_MS > 0){
     timeline.push(probDemoTrial);
   }
