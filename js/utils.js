@@ -1,38 +1,71 @@
-// --- URL パラメータ取得 ---
-function getParam(name, defaultValue = null){
+// URL パラメータ取得
+function getParam(name, defaultValue=null){
   const params = new URLSearchParams(window.location.search);
   return params.has(name) ? params.get(name) : defaultValue;
 }
 
-// --- 反射境界付きランダムウォーク（0.25–0.75） ---
+// ---- 既存：Math.random()版 RW（互換のため残す） ----
 function rwStep(p, step){
   const s = Math.random() < 0.5 ? -step : step;
   let v = p + s;
   const lo = 0.25, hi = 0.75;
-  if (v < lo) v = lo + (lo - v);   // reflect at lower bound
-  if (v > hi) v = hi - (v - hi);   // reflect at upper bound
+  if (v < lo) v = lo + (lo - v); // reflect
+  if (v > hi) v = hi - (v - hi);
   return Math.max(lo, Math.min(hi, v));
 }
 
-// --- CSV 生成（配列の配列ではなく配列のオブジェクトを想定）---
-function toCSV(rows){
-  if (!rows || !rows.length) return "";
-  const esc = (v)=>`"${String(v ?? "").replace(/"/g,'""')}"`;
-  const header = Object.keys(rows[0]);
-  const out = [header.map(esc).join(",")];
-  for (const r of rows){
-    out.push(header.map(k => esc(r[k])).join(","));
+// ---- 追加：シード付き PRNG（xmur3 + mulberry32） ----
+function _xmur3(str){
+  let h = 1779033703 ^ str.length;
+  for (let i=0; i<str.length; i++){
+    h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
   }
-  return out.join("\n");
+  return function(){
+    h = Math.imul(h ^ (h >>> 16), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    h ^= h >>> 16;
+    return h >>> 0;
+  };
+}
+function _mulberry32(a){
+  let t = a >>> 0;
+  return function(){
+    t += 0x6D2B79F5;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+/** 文字列 seed -> [0,1) 一様乱数を返す関数を生成 */
+function makeRng(seedStr){
+  const h = _xmur3(String(seedStr))();
+  return _mulberry32(h);
 }
 
-// --- CSV ダウンロード ---
+// ---- 追加：シード付き RW（反射境界 0.25–0.75） ----
+function rwStepSeed(p, step, rng){
+  const s = (rng() < 0.5 ? -step : step);
+  let v = p + s;
+  const lo = 0.25, hi = 0.75;
+  if (v < lo) v = lo + (lo - v); // reflect
+  if (v > hi) v = hi - (v - hi);
+  return Math.max(lo, Math.min(hi, v));
+}
+
+// CSV 生成
+function toCSV(rows){
+  const esc = (v)=>`"${String(v).replace(/"/g,'""')}"`;
+  const header = Object.keys(rows[0]);
+  const lines = [header.map(esc).join(",")];
+  for(const r of rows){ lines.push(header.map(k=>esc(r[k] ?? "")).join(",")); }
+  return lines.join("\n");
+}
+
 function download(filename, text){
-  const blob = new Blob([text], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob([text], {type: 'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  a.href = url; a.download = filename; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
 }
