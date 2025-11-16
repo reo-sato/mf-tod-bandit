@@ -1,14 +1,15 @@
 /* mf-tod-bandit main (v8 UMD, keyboard only, Firebase save)
-   - 新機能: インストラクション専用セッション
-     URL 例: ?session=instruction&pid=S001  または  ?session=instr&pid=S001
+   - 図形刺激で左右を視覚的に差別化（左=○ / 右=△）
+   - セッション 'instruction'（または instr/instructions）に対応
 */
 
 const CONFIG = {
-  N_TRIALS: 400,        // 本試行の試行数（morning/evening）
-  INSTR_PRACTICE_N: 10, // インストラクション専用セッションの練習試行数（0なら説明のみ）
-  STEP: 0.03,           // 環境確率のランダムウォーク幅
-  ITI_MS: 400,          // 空白（インタートライアル）
-  FEEDBACK_MS: 700      // フィードバック表示
+  N_TRIALS: 400,         // 本試行
+  INSTR_PRACTICE_N: 10,  // インストラクション時の練習試行（0なら説明のみ）
+  STEP: 0.03,            // 環境確率ランダムウォーク幅
+  ITI_MS: 400,           // インタートライアル
+  FEEDBACK_MS: 700,      // フィードバック表示
+  COUNTERBALANCE_BY_PID: false // true にすると PID で ○/△ を左右入替（オブジェクト刺激の反バイアス）
 };
 
 // --- URL パラメータ ---
@@ -18,14 +19,53 @@ const SESSION = (['instr','instruction','instructions'].includes(RAW_SESSION))
   : RAW_SESSION;
 const PID = getParam('pid', `P${Math.random().toString(36).slice(2,8)}`);
 
-// 実行する総試行数（インストラクション専用セッションでは練習本数に置換）
+// 実行試行数
 const TOTAL_TRIALS = (SESSION === 'instruction') ? CONFIG.INSTR_PRACTICE_N : CONFIG.N_TRIALS;
 
-// 環境確率（左右独立ランダムウォーク）
+// 環境確率（左右独立）
 let pL = 0.5, pR = 0.5;
 
 // ログ
 const rows = [];
+
+// 図形刺激（SVG：モノクロ・等輝度）
+function svgCircle() {
+  return `<svg viewBox="0 0 120 120" width="120" height="120" aria-label="circle" role="img">
+    <circle cx="60" cy="60" r="40" stroke="currentColor" stroke-width="8" fill="none" />
+  </svg>`;
+}
+function svgTriangle() {
+  return `<svg viewBox="0 0 120 120" width="120" height="120" aria-label="triangle" role="img">
+    <polygon points="60,20 100,100 20,100" stroke="currentColor" stroke-width="8" fill="none" />
+  </svg>`;
+}
+
+// PID に基づく簡易カウンターバランス（任意）
+function pidParity(pidStr) {
+  let s = 0;
+  for (let i=0;i<pidStr.length;i++) s = (s + pidStr.charCodeAt(i)) & 0xffff;
+  return s % 2;
+}
+// 左右の図形を決める（既定：左○/右△）
+const STIM_MAP = (() => {
+  const swap = CONFIG.COUNTERBALANCE_BY_PID && pidParity(PID) === 1;
+  // swap=true なら 左△/右○ に入れ替え
+  return swap
+    ? { left: 'triangle', right: 'circle' }
+    : { left: 'circle', right: 'triangle' };
+})();
+
+function stimBlockHTML(side /* 'left'|'right' */) {
+  const labelTop = (side === 'left') ? '左' : '右';
+  const keyLabel = (side === 'left') ? 'F' : 'J';
+  const svg = (STIM_MAP[side] === 'circle') ? svgCircle() : svgTriangle();
+  return `
+    <div class="col">
+      <div class="stim-box">${svg}</div>
+      <div class="stim-label">${labelTop}（${keyLabel}）</div>
+    </div>
+  `;
+}
 
 // ライブラリチェック
 function libsReady(){
@@ -49,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  // Firebase 初期化（config/ルール次第で保存、失敗時は main.js 側でCSVへフォールバック）
+  // Firebase 初期化（config/ルール次第で保存、失敗時は CSV フォールバック）
   const fbInit = (typeof initFirebase === 'function') ? initFirebase() : { ok:false };
   const USE_FIREBASE = !!fbInit.ok;
 
@@ -61,7 +101,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const payload = { pid: PID, session: SESSION, total, n: TOTAL_TRIALS, trials: rows };
       let msg = '';
 
-      // 保存（Firebaseが使えれば保存、だめならCSV）
       try{
         if (USE_FIREBASE) {
           const id = await saveToFirebase(payload);
@@ -75,7 +114,6 @@ document.addEventListener('DOMContentLoaded', () => {
         msg = `<div class="small">Firebase 未使用（または保存に失敗）につき CSV をダウンロードしました。<br>error: ${String(e)}</div>`;
       }
 
-      // 終了画面（インストラクション専用セッションは文言を変更）
       const header = (SESSION === 'instruction') ? 'インストラクション完了' : '終了';
       const note   = (SESSION === 'instruction')
         ? '<p>本番セッション（morning / evening）は別URLで実行してください。</p>'
@@ -91,15 +129,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // --- 説明スライド（セッション別に文言を出し分け） ---
+  // --- 説明スライド ---
   const introBody = (SESSION === 'instruction')
     ? `<h2>インストラクション</h2>
-       <p>このセッションでは課題の説明と<b>短い練習</b>のみ行います（本番は実施しません）。</p>
-       <p>左右どちらかを選び、当たり（1）をできるだけ多く集めてください。</p>
+       <p>このセッションでは課題の説明と<b>短い練習</b>のみ行います。</p>
+       <p>左右の選択肢は<b>図形</b>（例：○と△）で表示され、<b>F=左 / J=右</b>で選択します。</p>
        <p>各アームの当たり確率は時間とともに<b>ゆっくり変化</b>します（0.25–0.75）。</p>
        <p>報酬は <b>当たり=1 / はずれ=0</b> です。</p>`
     : `<h2>2アーム課題</h2>
-       <p>左右どちらかを選び、当たり（1）をできるだけ多く集めてください。</p>
+       <p>左右の選択肢は<b>図形</b>（例：○と△）で表示され、<b>F=左 / J=右</b>で選択します。</p>
        <p>各アームの当たり確率は時間とともに<b>ゆっくり変化</b>します（0.25–0.75）。</p>
        <p>報酬は <b>当たり=1 / はずれ=0</b> です。</p>`;
 
@@ -111,8 +149,12 @@ document.addEventListener('DOMContentLoaded', () => {
     type: jsPsychInstructions,
     pages: [
       introBody,
-      `<p>選択は<b>キーボードのみ</b>です：</p>
-       <p><b>F = 左</b>、<b>J = 右</b></p>
+      `<p>下のように表示されます。</p>
+       <div class="choice-row" style="justify-content:center;gap:96px;margin:24px 0;">
+         ${stimBlockHTML('left')}
+         ${stimBlockHTML('right')}
+       </div>
+       <p><b>F = 左</b>、<b>J = 右</b> で選択します。</p>
        ${countLine}
        <p>準備ができたら「次へ」を押してください。</p>`
     ],
@@ -131,14 +173,8 @@ document.addEventListener('DOMContentLoaded', () => {
           / pL=${pL.toFixed(2)} pR=${pR.toFixed(2)}
         </div>
         <div class="choice-row" style="gap:96px; margin-top:24px;">
-          <div>
-            <div style="font-size:22px; margin-bottom:8px;">左</div>
-            <div class="btn" style="display:inline-block; padding:10px 18px;">F</div>
-          </div>
-          <div>
-            <div style="font-size:22px; margin-bottom:8px;">右</div>
-            <div class="btn" style="display:inline-block; padding:10px 18px;">J</div>
-          </div>
+          ${stimBlockHTML('left')}
+          ${stimBlockHTML('right')}
         </div>
         <div class="small" style="margin-top:16px;">キーで選択してください（クリック不可）</div>
       `,
@@ -150,7 +186,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const pChosen = (choice === 'L') ? pL : pR;
         const reward = Math.random() < pChosen ? 1 : 0;
 
-        // ログ
         rows.push({
           pid: PID,
           session: SESSION,
@@ -159,28 +194,27 @@ document.addEventListener('DOMContentLoaded', () => {
           reward,
           rt: data.rt,
           p_left: pL.toFixed(3),
-          p_right: pR.toFixed(3)
+          p_right: pR.toFixed(3),
+          stim_left: STIM_MAP.left,
+          stim_right: STIM_MAP.right
         });
 
-        // 次試行に向けて環境確率を更新
         pL = rwStep(pL, CONFIG.STEP);
         pR = rwStep(pR, CONFIG.STEP);
 
-        // 次のフィードバック用
         data.__feedback = reward ? '✓ +1' : '× 0';
         data.__feedbackClass = reward ? 'win' : 'lose';
       }
     };
   }
 
-  // --- タイムライン構築 ---
+  // --- タイムライン ---
   const timeline = [instructions];
 
-  // インストラクション専用セッションで TOTAL_TRIALS=0 の場合は説明のみで終了
   for (let t=0; t<TOTAL_TRIALS; t++){
     timeline.push(trialFactory(t));
 
-    // フィードバック（キー入力不可）
+    // フィードバック
     timeline.push({
       type: jsPsychHtmlKeyboardResponse,
       stimulus: function(){
@@ -193,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
       trial_duration: CONFIG.FEEDBACK_MS
     });
 
-    // ITI（キー入力不可）
+    // ITI
     if (CONFIG.ITI_MS > 0){
       timeline.push({
         type: jsPsychHtmlKeyboardResponse,
