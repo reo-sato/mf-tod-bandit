@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>2-Arm Bandit (0/1 Reward)</title>
   <link rel="icon" href="data:,"><!-- favicon 404抑止 -->
-  <!-- jsPsych CSS -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jspsych@8.2.2/css/jspsych.css" />
+  <!-- jsPsych CSS（unpkg） -->
+  <link rel="stylesheet" href="https://unpkg.com/jspsych@8.2.2/css/jspsych.css" />
   <!-- App CSS -->
   <link rel="stylesheet" href="css/style.css" />
 </head>
@@ -14,17 +14,17 @@
   <noscript>この実験を実行するには JavaScript を有効にしてください。</noscript>
   <div id="jspsych-target"></div>
 
-  <!-- jsPsych core & plugins (UMD; deferなし) -->
-  <script src="https://cdn.jsdelivr.net/npm/jspsych@8.2.2/dist/index.umd.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-html-keyboard-response@2.2.0/dist/index.umd.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-instructions@2.1.0/dist/index.umd.js"></script>
+  <!-- jsPsych core & plugins (UMD; deferなし) — ★unpkgに統一 -->
+  <script src="https://unpkg.com/jspsych@8.2.2/dist/index.umd.js"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.2.0/dist/index.umd.js"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-instructions@2.1.0/dist/index.umd.js"></script>
 
   <!-- Firebase (compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 
-  <!-- App scripts (defer) -->
+  <!-- App scripts (defer) — ★ここは変更なし -->
   <script src="js/utils.js" defer></script>
   <script src="js/firebase.js" defer></script>
   <script src="js/main.js" defer></script>
