@@ -14,6 +14,9 @@ const FIREBASE_CONFIG = {
   measurementId: "G-9VE06HSBHN"
 };
 
+/** 匿名サインインを使うか（Authentication で匿名を有効化している前提） */
+const ENABLE_ANON_AUTH = true;
+
 (function () {
   function initFirebase() {
     try {
@@ -30,9 +33,11 @@ const FIREBASE_CONFIG = {
       }
       window.__db = firebase.firestore();
 
-      // 匿名認証（Authentication で「匿名」を有効化していれば成功します）
-      if (firebase.auth) {
-        firebase.auth().signInAnonymously().catch((e)=>console.warn('anon auth failed (ignored):', e));
+      // 匿名認証（無効化していると 400 / auth/configuration-not-found が出るので、不要ならフラグでOFFに）
+      if (ENABLE_ANON_AUTH && firebase.auth) {
+        firebase.auth().signInAnonymously().catch((e)=>{
+          console.warn('anon auth failed (ignored):', e);
+        });
       }
 
       return { ok: true, app: window.__fbApp, db: window.__db };
@@ -46,7 +51,7 @@ const FIREBASE_CONFIG = {
    * Firestore に 1 ドキュメントで保存（trials を配列で格納）
    * - コレクション: bandit_sessions
    * - ドキュメントID: <pid>_<session>_<timestamp>
-   *   ※ 1MB 制限に注意。将来大きくなる場合は trials をサブコレ化してください。
+   *   ※ 1MB 制限に注意。大きくなる場合は trials をサブコレ化してください。
    */
   async function saveToFirebase(payload) {
     if (!window.__db) throw new Error('Firestore is not initialized');
