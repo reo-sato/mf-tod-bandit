@@ -1,52 +1,63 @@
+/* === Global Centering === */
 html, body { height: 100%; }
-flex-direction: column;
-align-items: center;
-justify-content: center;
-padding: 16px;
+body { margin: 0; background: #0e0f12; color: #eef2f7; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+
+#jspsych-target, .jspsych-display-element {
+  min-height: 100svh;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
+.jspsych-content, .jspsych-content-wrapper {
+  max-width: 780px;
+  width: 100%;
+  margin: 0 auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
 
-/* テキストの中央寄せ（保険） */
 .jspsych-content h1, .jspsych-content h2, .jspsych-content h3,
 .jspsych-content p, .jspsych-content .small, .jspsych-content .big {
-text-align: center;
+  text-align: center;
 }
 
-
-/* インストラクションのナビゲーションを中央に */
 .jspsych-instructions-nav {
-display: flex;
-justify-content: center;
-align-items: center;
-gap: 12px;
-margin-top: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
 }
 
+/* Choice layout */
+.choice-row { display: flex; justify-content: center; align-items: center; gap: 48px; margin-top: 24px; flex-wrap: wrap; }
+.col { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 
-/* 汎用ボタンと選択肢レイアウト */
-.btn, .jspsych-btn {
-padding: 16px 24px;
-margin: 12px;
-border: 1px solid #3a3f47;
-border-radius: 10px;
-background: #1a1d22;
-cursor: pointer;
-font-size: 18px;
+/* Stimulus boxes (monochrome, equal salience) */
+.stim-box {
+  position: relative;
+  width: 140px; height: 140px;
+  display: flex; align-items: center; justify-content: center;
+  background: #111418;
+  border: 1px solid #3a3f47;
+  border-radius: 14px;
+  color: #d1d5db;  /* svg stroke uses currentColor */
 }
-.btn:hover, .jspsych-btn:hover { background: #22262d; }
+.stim-box svg { display: block; }
+.stim-label { font-size: 18px; color: #cdd6e3; }
 
+/* Optional ACK highlight */
+.stim-box.selected { outline: 3px solid #e5e7eb; box-shadow: 0 0 0 2px #e5e7eb inset; }
+.ackmark { position: absolute; top: -10px; right: -10px; font-size: 28px; line-height: 1; color: #e5e7eb;
+  background: rgba(17,20,24,0.9); border: 1px solid #3a3f47; border-radius: 10px; padding: 2px 6px; }
 
-.choice-row {
-display: flex;
-justify-content: center;
-align-items: center;
-gap: 48px;
-margin-top: 24px;
-flex-wrap: wrap;
-}
-
-
-/* 付随スタイル（中央配置と相性の良い既存UI） */
+/* Text & badges */
 .big { font-size: 28px; }
 .small { font-size: 16px; opacity: 0.8; }
 .badge { display: inline-block; padding: 3px 8px; border-radius: 8px; background: #263041; color: #9ecbff; font-size: 12px; margin-left: 8px; }
@@ -54,3 +65,21 @@ flex-wrap: wrap;
 .win { color: #6ee7a8; }
 .lose { color: #fca5a5; }
 .footer { margin-top: 24px; font-size: 12px; color: #9aa4b2; }
+
+/* Instruction: flow diagram */
+.flow { display: flex; align-items: stretch; gap: 12px; margin: 12px 0 8px; flex-wrap: wrap; justify-content: center; }
+.flow-item { background: #13171d; border: 1px solid #2f3742; border-radius: 10px; padding: 10px 14px; min-width: 140px; text-align: center; }
+.flow-title { font-weight: 600; margin-bottom: 4px; }
+.flow-desc { font-size: 14px; opacity: .9; }
+.flow-arrow { display: flex; align-items: center; justify-content: center; padding: 0 4px; font-size: 20px; opacity: .8; }
+
+/* Static line demo (SVG) */
+.chart-wrap { max-width: 720px; margin: 10px auto 0; }
+#probDemo { width: 100%; height: 260px; background: #111418; border: 1px solid #3a3f47; border-radius: 12px; }
+.grid { stroke: #2b3038; stroke-width: 1; }
+.axisLabel { fill: #cdd6e3; font-size: 12px; opacity: .8; }
+.lineL { stroke: #9ecbff; stroke-width: 2.5; fill: none; }
+.lineR { stroke: #fca5a5; stroke-width: 2.5; fill: none; stroke-dasharray: 6 4; }
+.legend { margin-top: 6px; font-size: 14px; color: #cdd6e3; display: flex; gap: 18px; justify-content: center; align-items: center; }
+.legend .swatchL { display:inline-block; width:18px; height:0; border-bottom:3px solid #9ecbff; }
+.legend .swatchR { display:inline-block; width:18px; height:0; border-bottom:3px dashed #fca5a5; }
