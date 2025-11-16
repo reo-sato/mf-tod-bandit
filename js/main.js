@@ -12,9 +12,9 @@ const CONFIG = {
   INSTR_PRACTICE_N: 10,    // instruction セッションの練習試行（0で説明のみは 0）
   STEP: 0.03,              // 環境RW幅（反射境界 0.25–0.75）
   DECISION_MS: 2000,       // ★選択の制限時間（ms）
-  ACK_MS: 250,             // 選択確認(ACK)
-  FEEDBACK_MS: 700,        // フィードバック
-  ITI_MS: 400,             // ITI
+  ACK_MS: 500,             // 選択確認(ACK)
+  FEEDBACK_MS: 800,        // フィードバック
+  ITI_MS: 500,             // ITI
   COUNTERBALANCE_BY_PID: false, // PIDで○/△の左右を入替
   DEMO_POINTS: 80,         // デモ折れ線（静的）
   DEMO_STEP: 0.025
