@@ -1,5 +1,5 @@
 /* mf-tod-bandit main (jsPsych v8 UMD)
-   - インストラクション: 静的「確率折れ線」デモ + タイムライン説明（次へ/戻る）
+   - インストラクション: 静的「確率折れ線」デモ + 実画面を模した遷移（選択→FB→ITI）
    - キー操作のみ（F=左 / J=右）
    - 環境RW＆報酬サンプルは「朝/晩/被験者」でシード分離
    - Firebase保存（失敗時はCSVフォールバック）
@@ -7,7 +7,7 @@
 
 const CONFIG = {
   N_TRIALS: 400,           // 本試行
-  INSTR_PRACTICE_N: 10,    // instruction セッションの練習試行（0で説明のみ）
+  INSTR_PRACTICE_N: 10,    // instruction セッションの練習試行（0で説明のみは 0）
   STEP: 0.03,              // 環境RW幅（反射境界 0.25–0.75）
   ACK_MS: 250,             // 選択確認(ACK)
   FEEDBACK_MS: 700,        // フィードバック
@@ -165,7 +165,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- Instruction pages ---
   const demoHTML = buildDemoChartHTML(genDemoSeries(SESSION, CONFIG.DEMO_POINTS));
-  const pages = [
+
+  // ① 概要
+  const pageIntro =
     (SESSION === 'instruction'
       ? `<h2>インストラクション</h2>
          <p>左右の選択肢は<b>図形</b>（例：○と△）で表示され、<b>F=左 / J=右</b>で選択します。</p>
@@ -174,30 +176,47 @@ document.addEventListener('DOMContentLoaded', () => {
       : `<h2>2アーム課題</h2>
          <p>左右の選択肢は<b>図形</b>（例：○と△）で表示され、<b>F=左 / J=右</b>で選択します。</p>
          <p>各アームの当たり確率は時間とともに<b>ゆっくり変化</b>します（0.25–0.75）。</p>
-         <p>報酬は <b>当たり=1 / はずれ=0</b> です。</p>`
-    ),
+         <p>報酬は <b>当たり=1 / はずれ=0</b> です。</p>`);
+
+  // ② 確率デモ（静的）
+  const pageDemo =
     `<p>当たり確率（0.25–0.75）は、下のように<b>ゆっくり変動</b>します（デモ）。</p>
      ${demoHTML}
-     <p class="small" style="margin-top:6px;">※ 本番では確率は表示されません。朝/夜セッションでは<b>異なる擬似乱数系列</b>が用いられます。</p>`,
-    `<h3>1試行のタイムライン</h3>
-     <div class="flow">
-       <div class="flow-item"><div class="flow-title">選択</div><div class="flow-desc">F=左 / J=右</div></div>
-       <div class="flow-arrow">→</div>
-       <div class="flow-item"><div class="flow-title">報酬提示</div><div class="flow-desc">✓ +1 / × 0（約 ${CONFIG.FEEDBACK_MS} ms）</div></div>
-       <div class="flow-arrow">→</div>
-       <div class="flow-item"><div class="flow-title">ITI</div><div class="flow-desc">空白（約 ${CONFIG.ITI_MS} ms）</div></div>
+     <p class="small" style="margin-top:6px;">※ 本番では確率は表示されません。朝/夜セッションでは<b>異なる擬似乱数系列</b>が用いられます。</p>`;
+
+  // ③ 模擬：選択画面（F/J案内・このページは「次へ」で遷移）
+  const pageMockChoice =
+    `<div class="mock-title">【模擬】選択画面</div>
+     <div class="small">実際の課題では <b>F=左 / J=右</b> で即時に選択が確定します。</div>
+     <div class="choice-row" style="gap:96px; margin-top:16px;">
+       ${stimBlockHTML('left')}
+       ${stimBlockHTML('right')}
      </div>
-     <p class="small">※ 当たり確率は各試行間で緩やかに変化します（反射境界 RW）。</p>
-     ${(SESSION === 'instruction')
-        ? `<p>このセッションの練習試行数は <b>${TOTAL_TRIALS}</b> です（0 なら説明のみ）。</p>`
-        : `<p>このセッションは <b>${TOTAL_TRIALS}</b> 試行です。</p>`
-     }
-     <p>準備ができたら「次へ」を押してください。</p>`
-  ];
+     <div class="mock-note">※ 本インストラクションでは<b>ボタン（次へ）</b>で遷移します。</div>`;
+
+  // ④ 模擬：フィードバック画面（duration は文言で）
+  const pageMockFeedback =
+    `<div class="mock-title">【模擬】フィードバック画面</div>
+     <div class="jspsych-content"><div class="feedback win">✓ +1</div></div>
+     <div class="mock-note">実際の課題では <b>約 ${CONFIG.FEEDBACK_MS}ms</b> 提示されます。</div>`;
+
+  // ⑤ 模擬：ITI 画面（空白・duration は文言で）
+  const pageMockITI =
+    `<div class="mock-title">【模擬】ITI（休止）</div>
+     <div class="mock-blank">（空白）</div>
+     <div class="mock-note">実際の課題では <b>約 ${CONFIG.ITI_MS}ms</b> の空白画面が表示されます。</div>`;
+
+  // ⑥ ここから本試行の案内
+  const pageReady =
+    `<p>${SESSION === 'instruction'
+        ? `このセッションの練習試行数は <b>${TOTAL_TRIALS}</b> です。`
+        : `このセッションは <b>${TOTAL_TRIALS}</b> 試行です。`
+      }</p>
+     <p>準備ができたら「次へ」を押してください（本番では選択後に自動で画面が切り替わります）。</p>`;
 
   const instructions = {
     type: jsPsychInstructions,
-    pages,
+    pages: [pageIntro, pageDemo, pageMockChoice, pageMockFeedback, pageMockITI, pageReady],
     show_clickable_nav: true,
     button_label_next: '次へ',
     button_label_previous: '戻る'
@@ -250,7 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 選択
     timeline.push(trialFactory(t));
 
-    // AC
+    // ACK
     timeline.push({
       type: jsPsychHtmlKeyboardResponse,
       stimulus: function(){
