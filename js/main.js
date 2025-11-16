@@ -250,7 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 選択
     timeline.push(trialFactory(t));
 
-    // ACK
+    // AC
     timeline.push({
       type: jsPsychHtmlKeyboardResponse,
       stimulus: function(){
