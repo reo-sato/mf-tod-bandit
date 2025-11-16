@@ -1,5 +1,4 @@
 /* mf-tod-bandit main (jsPsych v8 UMD)
-   - すべて中央配置
    - インストラクション: 静的「確率折れ線」デモ + タイムライン説明（次へ/戻る）
    - キー操作のみ（F=左 / J=右）
    - 環境RW＆報酬サンプルは「朝/晩/被験者」でシード分離
@@ -14,9 +13,7 @@ const CONFIG = {
   FEEDBACK_MS: 700,        // フィードバック
   ITI_MS: 400,             // ITI
   COUNTERBALANCE_BY_PID: false, // PIDで○/△の左右を入替
-
-  // デモ折れ線（静的）：左右が乖離するよう反相関で生成
-  DEMO_POINTS: 80,
+  DEMO_POINTS: 80,         // デモ折れ線（静的）
   DEMO_STEP: 0.025
 };
 
@@ -228,7 +225,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const choice = (key === 'f') ? 'L' : 'R';
         const pChosen = (choice==='L') ? pL : pR;
 
-        // 報酬はセッション別シード
         const reward = (rngRew() < pChosen) ? 1 : 0;
 
         rows.push({
@@ -238,7 +234,6 @@ document.addEventListener('DOMContentLoaded', () => {
           stim_left: STIM_MAP.left, stim_right: STIM_MAP.right
         });
 
-        // 次試行に向け、環境RWをセッション別シードで更新
         pL = rwStepSeed(pL, CONFIG.STEP, rngEnv);
         pR = rwStepSeed(pR, CONFIG.STEP, rngEnv);
 
@@ -255,7 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 選択
     timeline.push(trialFactory(t));
 
-    // 選択確認(ACK) — 控えめなチェック表示（中立色）
+    // ACK
     timeline.push({
       type: jsPsychHtmlKeyboardResponse,
       stimulus: function(){
