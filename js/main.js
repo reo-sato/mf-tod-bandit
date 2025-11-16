@@ -1,15 +1,17 @@
 /* mf-tod-bandit main (v8 UMD, keyboard only, Firebase save)
    - 図形刺激で左右を視覚的に差別化（左=○ / 右=△）
    - セッション 'instruction'（または instr/instructions）に対応
+   - NEW: 選択直後に「選択確認(ACK)」画面を短時間表示 → その後に結果フィードバック
 */
 
 const CONFIG = {
   N_TRIALS: 400,         // 本試行
   INSTR_PRACTICE_N: 10,  // インストラクション時の練習試行（0なら説明のみ）
   STEP: 0.03,            // 環境確率ランダムウォーク幅
-  ITI_MS: 400,           // インタートライアル
-  FEEDBACK_MS: 700,      // フィードバック表示
-  COUNTERBALANCE_BY_PID: false // true にすると PID で ○/△ を左右入替（オブジェクト刺激の反バイアス）
+  ACK_MS: 250,           // ★ 選択確認(ACK)の表示時間（ms）
+  FEEDBACK_MS: 700,      // 結果フィードバック表示（ms）
+  ITI_MS: 400,           // インタートライアル（ms）
+  COUNTERBALANCE_BY_PID: false // true: PIDで○/△の左右を入替
 };
 
 // --- URL パラメータ ---
@@ -49,19 +51,24 @@ function pidParity(pidStr) {
 // 左右の図形を決める（既定：左○/右△）
 const STIM_MAP = (() => {
   const swap = CONFIG.COUNTERBALANCE_BY_PID && pidParity(PID) === 1;
-  // swap=true なら 左△/右○ に入れ替え
   return swap
     ? { left: 'triangle', right: 'circle' }
     : { left: 'circle', right: 'triangle' };
 })();
 
-function stimBlockHTML(side /* 'left'|'right' */) {
+// 図形ブロックHTML（selected=trueでACK用ハイライト＋中立チェック表示）
+function stimBlockHTML(side /* 'left'|'right' */, selected=false) {
   const labelTop = (side === 'left') ? '左' : '右';
   const keyLabel = (side === 'left') ? 'F' : 'J';
   const svg = (STIM_MAP[side] === 'circle') ? svgCircle() : svgTriangle();
+  const selClass = selected ? ' selected' : '';
+  const ack = selected ? `<div class="ackmark" aria-hidden="true">✓</div>` : '';
   return `
     <div class="col">
-      <div class="stim-box">${svg}</div>
+      <div class="stim-box${selClass}">
+        ${svg}
+        ${ack}
+      </div>
       <div class="stim-label">${labelTop}（${keyLabel}）</div>
     </div>
   `;
@@ -155,6 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
          ${stimBlockHTML('right')}
        </div>
        <p><b>F = 左</b>、<b>J = 右</b> で選択します。</p>
+       <p>選択後は<b>短い確認画面</b>（中立色のチェック）が表示された後、結果（✓ +1 / × 0）が提示されます。</p>
        ${countLine}
        <p>準備ができたら「次へ」を押してください。</p>`
     ],
@@ -199,10 +207,13 @@ document.addEventListener('DOMContentLoaded', () => {
           stim_right: STIM_MAP.right
         });
 
+        // 次試行に向けて環境確率を先に更新（結果は次のフィードバックで提示）
         pL = rwStep(pL, CONFIG.STEP);
         pR = rwStep(pR, CONFIG.STEP);
 
-        data.__feedback = reward ? '✓ +1' : '× 0';
+        // 後続のACK/フィードバック用フラグ
+        data.__choice = choice;                           // 'L' | 'R'
+        data.__feedbackText = reward ? '✓ +1' : '× 0';
         data.__feedbackClass = reward ? 'win' : 'lose';
       }
     };
@@ -212,14 +223,37 @@ document.addEventListener('DOMContentLoaded', () => {
   const timeline = [instructions];
 
   for (let t=0; t<TOTAL_TRIALS; t++){
+    // 1) 選択
     timeline.push(trialFactory(t));
 
-    // フィードバック
+    // 2) 選択確認（ACK）：選んだ側だけ淡い枠＋中立チェック。キー入力不可
     timeline.push({
       type: jsPsychHtmlKeyboardResponse,
       stimulus: function(){
         const last = jsPsych.data.get().last(1).values()[0] || {};
-        const txt = last.__feedback || '';
+        const ch = last.__choice || 'L';
+        const lSel = (ch === 'L'), rSel = (ch === 'R');
+        return `
+          <div class="small">
+            PID: ${PID} / Session: ${SESSION} / Trial ${t+1}
+          </div>
+          <div class="choice-row" style="gap:96px; margin-top:24px;">
+            ${stimBlockHTML('left', lSel)}
+            ${stimBlockHTML('right', rSel)}
+          </div>
+          <div class="small" style="margin-top:16px;">選択を確認中…</div>
+        `;
+      },
+      choices: "NO_KEYS",
+      trial_duration: CONFIG.ACK_MS
+    });
+
+    // 3) 結果フィードバック（✓ +1 / × 0）：キー入力不可
+    timeline.push({
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: function(){
+        const last = jsPsych.data.get().last(2).values()[0] || {}; // trialFactory のデータ
+        const txt = last.__feedbackText || '';
         const cls = last.__feedbackClass || '';
         return `<div class="jspsych-content"><div class="feedback ${cls}">${txt}</div></div>`;
       },
@@ -227,7 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
       trial_duration: CONFIG.FEEDBACK_MS
     });
 
-    // ITI
+    // 4) ITI（キー入力不可）
     if (CONFIG.ITI_MS > 0){
       timeline.push({
         type: jsPsychHtmlKeyboardResponse,
