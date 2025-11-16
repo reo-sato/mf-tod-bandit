@@ -1,14 +1,25 @@
-/* mf-tod-bandit main (v8 UMD, keyboard only, Firebase save) */
+/* mf-tod-bandit main (v8 UMD, keyboard only, Firebase save)
+   - 新機能: インストラクション専用セッション
+     URL 例: ?session=instruction&pid=S001  または  ?session=instr&pid=S001
+*/
+
 const CONFIG = {
-  N_TRIALS: 10,
-  STEP: 0.03,          // 環境確率のランダムウォーク幅
-  ITI_MS: 400,         // 空白（インタートライアル）ms
-  FEEDBACK_MS: 700     // フィードバック表示ms
+  N_TRIALS: 400,        // 本試行の試行数（morning/evening）
+  INSTR_PRACTICE_N: 10, // インストラクション専用セッションの練習試行数（0なら説明のみ）
+  STEP: 0.03,           // 環境確率のランダムウォーク幅
+  ITI_MS: 400,          // 空白（インタートライアル）
+  FEEDBACK_MS: 700      // フィードバック表示
 };
 
-// URL パラメータ
-const SESSION = (getParam('session','morning')||'').toLowerCase();
-const PID     = getParam('pid', `P${Math.random().toString(36).slice(2,8)}`);
+// --- URL パラメータ ---
+const RAW_SESSION = (getParam('session','morning')||'').toLowerCase();
+const SESSION = (['instr','instruction','instructions'].includes(RAW_SESSION))
+  ? 'instruction'
+  : RAW_SESSION;
+const PID = getParam('pid', `P${Math.random().toString(36).slice(2,8)}`);
+
+// 実行する総試行数（インストラクション専用セッションでは練習本数に置換）
+const TOTAL_TRIALS = (SESSION === 'instruction') ? CONFIG.INSTR_PRACTICE_N : CONFIG.N_TRIALS;
 
 // 環境確率（左右独立ランダムウォーク）
 let pL = 0.5, pR = 0.5;
@@ -16,7 +27,7 @@ let pL = 0.5, pR = 0.5;
 // ログ
 const rows = [];
 
-// v8(UMD) がロード済みか軽くチェック
+// ライブラリチェック
 function libsReady(){
   return (typeof initJsPsych === 'function' &&
           typeof jsPsychHtmlKeyboardResponse === 'function' &&
@@ -38,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  // Firebase 初期化
+  // Firebase 初期化（config/ルール次第で保存、失敗時は main.js 側でCSVへフォールバック）
   const fbInit = (typeof initFirebase === 'function') ? initFirebase() : { ok:false };
   const USE_FIREBASE = !!fbInit.ok;
 
@@ -47,53 +58,70 @@ document.addEventListener('DOMContentLoaded', () => {
     display_element: 'jspsych-target',
     on_finish: async () => {
       const total = rows.reduce((s,r)=>s+(r.reward||0),0);
+      const payload = { pid: PID, session: SESSION, total, n: TOTAL_TRIALS, trials: rows };
       let msg = '';
-      const payload = { pid: PID, session: SESSION, total, n: CONFIG.N_TRIALS, trials: rows };
 
-      if (USE_FIREBASE) {
-        try{
+      // 保存（Firebaseが使えれば保存、だめならCSV）
+      try{
+        if (USE_FIREBASE) {
           const id = await saveToFirebase(payload);
           msg = `<div class="small">Firebase に保存しました（id: <code>${id}</code>）。</div>`;
-        }catch(e){
-          console.error('Firebase save error:', e);
-          const csv = toCSV(rows);
-          download(`bandit_${PID}_${SESSION}.csv`, csv);
-          msg = `<div class="small">Firebase 保存に失敗したため CSV をダウンロードしました。<br>error: ${String(e)}</div>`;
+        } else {
+          throw new Error('Firebase not available');
         }
-      } else {
+      }catch(e){
         const csv = toCSV(rows);
         download(`bandit_${PID}_${SESSION}.csv`, csv);
-        msg = '<div class="small">Firebase 未設定のため CSV をダウンロードしました。</div>';
+        msg = `<div class="small">Firebase 未使用（または保存に失敗）につき CSV をダウンロードしました。<br>error: ${String(e)}</div>`;
       }
 
+      // 終了画面（インストラクション専用セッションは文言を変更）
+      const header = (SESSION === 'instruction') ? 'インストラクション完了' : '終了';
+      const note   = (SESSION === 'instruction')
+        ? '<p>本番セッション（morning / evening）は別URLで実行してください。</p>'
+        : '';
       document.body.innerHTML = `
         <div class="jspsych-content">
-          <h2>終了</h2>
-          <p class="big">合計スコア：<b>${total}</b> <span class="badge">N=${CONFIG.N_TRIALS}</span></p>
+          <h2>${header}</h2>
+          <p class="big">合計スコア：<b>${total}</b> <span class="badge">N=${TOTAL_TRIALS}</span></p>
           ${msg}
+          ${note}
           <div class="footer">PID: ${PID} / Session: ${SESSION}</div>
         </div>`;
     }
   });
 
-  // 説明
+  // --- 説明スライド（セッション別に文言を出し分け） ---
+  const introBody = (SESSION === 'instruction')
+    ? `<h2>インストラクション</h2>
+       <p>このセッションでは課題の説明と<b>短い練習</b>のみ行います（本番は実施しません）。</p>
+       <p>左右どちらかを選び、当たり（1）をできるだけ多く集めてください。</p>
+       <p>各アームの当たり確率は時間とともに<b>ゆっくり変化</b>します（0.25–0.75）。</p>
+       <p>報酬は <b>当たり=1 / はずれ=0</b> です。</p>`
+    : `<h2>2アーム課題</h2>
+       <p>左右どちらかを選び、当たり（1）をできるだけ多く集めてください。</p>
+       <p>各アームの当たり確率は時間とともに<b>ゆっくり変化</b>します（0.25–0.75）。</p>
+       <p>報酬は <b>当たり=1 / はずれ=0</b> です。</p>`;
+
+  const countLine = (SESSION === 'instruction')
+    ? `<p>このセッションの練習試行数は <b>${TOTAL_TRIALS}</b> です（0 なら説明のみ）。</p>`
+    : `<p>このセッションは <b>${TOTAL_TRIALS}</b> 試行です。</p>`;
+
   const instructions = {
     type: jsPsychInstructions,
     pages: [
-      `<h2>2アーム課題</h2>
-       <p>左右どちらかを選び、当たり（1）をできるだけ多く集めてください。</p>
-       <p>各アームの当たり確率は時間とともに <b>ゆっくり変化します</b>（0.25–0.75）。</p>
-       <p>報酬は <b>当たり=1 / はずれ=0</b> です。</p>`,
+      introBody,
       `<p>選択は<b>キーボードのみ</b>です：</p>
        <p><b>F = 左</b>、<b>J = 右</b></p>
-       <p>このセッションは <b>${CONFIG.N_TRIALS}</b> 試行です。準備ができたら開始してください。</p>`
+       ${countLine}
+       <p>準備ができたら「次へ」を押してください。</p>`
     ],
     show_clickable_nav: true,
     button_label_next: '次へ',
     button_label_previous: '戻る'
   };
 
-  // 1試行（キー押し）
+  // --- 1試行（キー押し） ---
   function trialFactory(tIndex){
     return {
       type: jsPsychHtmlKeyboardResponse,
@@ -145,9 +173,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  // タイムライン
+  // --- タイムライン構築 ---
   const timeline = [instructions];
-  for (let t=0; t<CONFIG.N_TRIALS; t++){
+
+  // インストラクション専用セッションで TOTAL_TRIALS=0 の場合は説明のみで終了
+  for (let t=0; t<TOTAL_TRIALS; t++){
     timeline.push(trialFactory(t));
 
     // フィードバック（キー入力不可）
