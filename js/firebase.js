@@ -2,7 +2,16 @@
 
 // ★ここに Firebase コンソールで取得した設定値を入れてください。
 // 例）const FIREBASE_CONFIG = { apiKey: "...", authDomain: "...", projectId: "...", ... };
-const FIREBASE_CONFIG = null; // ← nullのままなら無効（CSVフォールバック）
+const FIREBASE_CONFIG = // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyCSt4SKKSpsJMosQ2WUXFxBi9QWDAQYYXE",
+  authDomain: "bandit-tod.firebaseapp.com",
+  projectId: "bandit-tod",
+  storageBucket: "bandit-tod.firebasestorage.app",
+  messagingSenderId: "740146200078",
+  appId: "1:740146200078:web:63b46bba3e7f04e8bc865f",
+  measurementId: "G-9VE06HSBHN"
+};; // ← nullのままなら無効（CSVフォールバック）
 
 (function () {
   function initFirebase() {
