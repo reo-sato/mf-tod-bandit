@@ -1,6 +1,6 @@
 /* mf-tod-bandit main (v8 UMD, keyboard only, Firebase save) */
 const CONFIG = {
-  N_TRIALS: 400,
+  N_TRIALS: 10,
   STEP: 0.03,          // 環境確率のランダムウォーク幅
   ITI_MS: 400,         // 空白（インタートライアル）ms
   FEEDBACK_MS: 700,    // フィードバック表示ms
