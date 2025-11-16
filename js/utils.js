@@ -21,7 +21,7 @@ function download(filename, text){
   setTimeout(()=>URL.revokeObjectURL(url), 1000);
 }
 
-// --- Seeded PRNG (xmur3 + mulberry32) ---
+// Seeded PRNG
 function _xmur3(str){
   let h = 1779033703 ^ str.length;
   for (let i=0; i<str.length; i++){
