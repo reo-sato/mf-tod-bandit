@@ -1,10 +1,7 @@
 /* firebase init & save (Firestore compat) */
 
-/**
- * Firebase 構成（いただいた値をセット済み）
- * ※ この情報は公開して問題ない種別の設定値です（秘密鍵ではありません）
- */
-const FIREBASE_CONFIG = {
+// === your provided config ===
+const firebaseConfig = {
   apiKey: "AIzaSyCSt4SKKSpsJMosQ2WUXFxBi9QWDAQYYXE",
   authDomain: "bandit-tod.firebaseapp.com",
   projectId: "bandit-tod",
@@ -14,32 +11,23 @@ const FIREBASE_CONFIG = {
   measurementId: "G-9VE06HSBHN"
 };
 
-/** 匿名サインインを使うか（Authentication で匿名を有効化している前提） */
+// enable anonymous auth? (Consoleで匿名を有効化しているならtrue推奨)
 const ENABLE_ANON_AUTH = true;
 
 (function () {
   function initFirebase() {
     try {
       if (!window.firebase) return { ok: false, reason: 'Firebase SDK not loaded' };
-      if (!FIREBASE_CONFIG || Object.keys(FIREBASE_CONFIG).length === 0) {
-        return { ok: false, reason: 'FIREBASE_CONFIG is empty' };
-      }
-
-      // すでに初期化済みなら再利用
       if (firebase.apps && firebase.apps.length) {
         window.__fbApp = firebase.apps[0];
       } else {
-        window.__fbApp = firebase.initializeApp(FIREBASE_CONFIG);
+        window.__fbApp = firebase.initializeApp(firebaseConfig);
       }
       window.__db = firebase.firestore();
 
-      // 匿名認証（無効化していると 400 / auth/configuration-not-found が出るので、不要ならフラグでOFFに）
       if (ENABLE_ANON_AUTH && firebase.auth) {
-        firebase.auth().signInAnonymously().catch((e)=>{
-          console.warn('anon auth failed (ignored):', e);
-        });
+        firebase.auth().signInAnonymously().catch(e => console.warn('anon auth failed:', e));
       }
-
       return { ok: true, app: window.__fbApp, db: window.__db };
     } catch (e) {
       console.error('Firebase init error:', e);
@@ -47,36 +35,22 @@ const ENABLE_ANON_AUTH = true;
     }
   }
 
-  /**
-   * Firestore に 1 ドキュメントで保存（trials を配列で格納）
-   * - コレクション: bandit_sessions
-   * - ドキュメントID: <pid>_<session>_<timestamp>
-   *   ※ 1MB 制限に注意。大きくなる場合は trials をサブコレ化してください。
-   */
   async function saveToFirebase(payload) {
     if (!window.__db) throw new Error('Firestore is not initialized');
-    const id =
-      payload.id ||
-      `${payload.pid || 'P'}_${payload.session || 'na'}_${Date.now()}`;
+    const id = payload.id || `${payload.pid || 'P'}_${payload.session || 'na'}_${Date.now()}`;
     const ref = window.__db.collection('bandit_sessions').doc(id);
-
     const meta = {
-      pid: payload.pid,
-      session: payload.session,
-      total: payload.total,
-      n: payload.n,
+      pid: payload.pid, session: payload.session, total: payload.total, n: payload.n,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       clientTime: new Date().toISOString(),
-      agent: 'bandit_v8_keyboard',
+      agent: 'bandit_v8_keyboard_centered',
       userAgent: navigator.userAgent
     };
-
     const doc = { ...meta, trials: payload.trials || [] };
     await ref.set(doc, { merge: false });
     return id;
   }
 
-  // グローバル公開
   window.initFirebase = initFirebase;
   window.saveToFirebase = saveToFirebase;
 })();
