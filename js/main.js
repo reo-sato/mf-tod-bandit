@@ -5,7 +5,7 @@ if(e.key.toLowerCase()==='f') document.querySelectorAll('button')[0].click();
 if(e.key.toLowerCase()==='j') document.querySelectorAll('button')[1].click();
 };
 window.addEventListener('keydown', handler, { once:true });
-},
+
 on_finish: (data) => {
 const choice = (data.response===0? 'L':'R');
 const p_chosen = (choice==='L'? pL : pR);
