@@ -1,20 +1,17 @@
-/* mf-tod-bandit main (v8 UMD, keyboard only, Google Apps Script save) */
+/* mf-tod-bandit main (v8 UMD, keyboard only, Firebase save) */
 const CONFIG = {
-  N_TRIALS: 400,        // 試行数
-  STEP: 0.03,           // 環境確率のRWステップ幅
-  ITI_MS: 400,          // インタートライアル（空白）ms
-  FEEDBACK_MS: 700,     // フィードバック表示ms
-
-  // ★ Webアプリとしてデプロイした Google Apps Script のURL を設定（後述の Code.gs）
-  // 例: 'https://script.google.com/macros/s/AKfycbxxxxxxxxxxxxxxxxxxxx/exec'
-  GAS_ENDPOINT: ''      // 空ならローカルCSVダウンロードにフォールバック
+  N_TRIALS: 400,
+  STEP: 0.03,          // 環境確率のランダムウォーク幅
+  ITI_MS: 400,         // 空白（インタートライアル）ms
+  FEEDBACK_MS: 700,    // フィードバック表示ms
+  GAS_ENDPOINT: null   // （未使用）GAS連携を使う場合のみ
 };
 
-// URLパラメータ
-const SESSION = (getParam('session','morning') || '').toLowerCase(); // 'morning' | 'evening'
+// URL パラメータ
+const SESSION = (getParam('session','morning')||'').toLowerCase();
 const PID     = getParam('pid', `P${Math.random().toString(36).slice(2,8)}`);
 
-// 環境（左右の当たり確率；独立RW）
+// 環境確率（左右独立ランダムウォーク）
 let pL = 0.5, pR = 0.5;
 
 // ログ
@@ -42,44 +39,34 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
+  // Firebase 初期化（あれば使用）
+  const fbInit = (typeof initFirebase === 'function') ? initFirebase() : { ok:false };
+  const USE_FIREBASE = !!fbInit.ok;
+
   // jsPsych 初期化
   const jsPsych = initJsPsych({
     display_element: 'jspsych-target',
     on_finish: async () => {
       const total = rows.reduce((s,r)=>s+(r.reward||0),0);
-
-      // --- 保存処理 ---
       let msg = '';
-      if (CONFIG.GAS_ENDPOINT && /^https:\/\/script\.googleusercontent\.com\/macros\/exec|https:\/\/script\.google\.com\/macros\/s\//.test(CONFIG.GAS_ENDPOINT)) {
-        try {
-          // CORS/プリフライト回避のため content-type を text/plain にし、no-cors で fire-and-forget
-          const payload = {
-            pid: PID,
-            session: SESSION,
-            total,
-            n: CONFIG.N_TRIALS,
-            trials: rows
-          };
-          await fetch(CONFIG.GAS_ENDPOINT, {
-            method: 'POST',
-            mode: 'no-cors',                 // レスポンスは読まない（GAS 側記録のみ）
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify(payload)
-          });
-          msg = '<div class="small">サーバに送信しました（Google スプレッドシート）。</div>';
-        } catch (e) {
-          msg = `<div class="small">送信に失敗しました: ${e}. 代わりにCSVをダウンロードします。</div>`;
+      const payload = { pid: PID, session: SESSION, total, n: CONFIG.N_TRIALS, trials: rows };
+
+      if (USE_FIREBASE) {
+        try{
+          const id = await saveToFirebase(payload);
+          msg = `<div class="small">Firebase に保存しました（id: <code>${id}</code>）。</div>`;
+        }catch(e){
+          console.error('Firebase save error:', e);
           const csv = toCSV(rows);
           download(`bandit_${PID}_${SESSION}.csv`, csv);
+          msg = `<div class="small">Firebase 保存に失敗したため CSV をダウンロードしました。<br>error: ${String(e)}</div>`;
         }
       } else {
-        // フォールバック：ローカルCSV
         const csv = toCSV(rows);
         download(`bandit_${PID}_${SESSION}.csv`, csv);
-        msg = '<div class="small">CSV をダウンロードしました（GAS未設定）。</div>';
+        msg = '<div class="small">Firebase 未設定のため CSV をダウンロードしました。</div>';
       }
 
-      // 終了画面
       document.body.innerHTML = `
         <div class="jspsych-content">
           <h2>終了</h2>
@@ -107,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
     button_label_previous: '戻る'
   };
 
-  // 1 試行
+  // 1試行（キー押し）
   function trialFactory(tIndex){
     return {
       type: jsPsychHtmlKeyboardResponse,
@@ -132,9 +119,9 @@ document.addEventListener('DOMContentLoaded', () => {
       response_ends_trial: true,
       on_finish: (data) => {
         const key = String(data.response || '').toLowerCase();
-        const choice  = (key === 'f') ? 'L' : 'R';
+        const choice = (key === 'f') ? 'L' : 'R';
         const pChosen = (choice === 'L') ? pL : pR;
-        const reward  = Math.random() < pChosen ? 1 : 0;
+        const reward = Math.random() < pChosen ? 1 : 0;
 
         // ログ
         rows.push({
@@ -152,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pL = rwStep(pL, CONFIG.STEP);
         pR = rwStep(pR, CONFIG.STEP);
 
-        // 次のフィードバック用
+        // 次のフィードバック用に保存
         data.__feedback = reward ? '✓ +1' : '× 0';
         data.__feedbackClass = reward ? 'win' : 'lose';
       }
@@ -161,7 +148,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // タイムライン
   const timeline = [instructions];
-
   for (let t=0; t<CONFIG.N_TRIALS; t++){
     timeline.push(trialFactory(t));
 
