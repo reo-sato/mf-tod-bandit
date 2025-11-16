@@ -40,8 +40,6 @@ pL = rwStep(pL, CONFIG.STEP);
 pR = rwStep(pR, CONFIG.STEP);
 }
 
-}
-
 
 // タイムライン構築
 const timeline = [instructions];
