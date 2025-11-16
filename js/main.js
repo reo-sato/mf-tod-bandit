@@ -1,6 +1,7 @@
 /* mf-tod-bandit main (jsPsych v8 UMD)
    - インストラクション: 静的「確率折れ線」デモ + 実画面を模した遷移（選択→FB→ITI）
    - 目的意識の明示（課題全体の報酬最大化）
+   - 選択に制限時間（デッドライン）を追加：時間切れは報酬0で進行
    - キー操作のみ（F=左 / J=右）
    - 環境RW＆報酬サンプルは「朝/晩/被験者」でシード分離
    - Firebase保存（失敗時はCSVフォールバック）
@@ -10,6 +11,7 @@ const CONFIG = {
   N_TRIALS: 400,           // 本試行
   INSTR_PRACTICE_N: 10,    // instruction セッションの練習試行（0で説明のみは 0）
   STEP: 0.03,              // 環境RW幅（反射境界 0.25–0.75）
+  DECISION_MS: 2000,       // ★選択の制限時間（ms）
   ACK_MS: 250,             // 選択確認(ACK)
   FEEDBACK_MS: 700,        // フィードバック
   ITI_MS: 400,             // ITI
@@ -179,58 +181,65 @@ document.addEventListener('DOMContentLoaded', () => {
          <p>各アームの当たり確率は時間とともに<b>ゆっくり変化</b>します（0.25–0.75）。</p>
          <p>報酬は <b>当たり=1 / はずれ=0</b> です。</p>`);
 
-  // ② 目的意識（新規追加）
+  // ② 目的意識
   const pagePurpose =
     `<h3>この課題の目的</h3>
      <p>どちらの選択肢が<b>より当たりやすい</b>かを試行を通して<b>学習</b>し、</p>
      <p><b>課題全体</b>で獲得できる<b>報酬（当たり=1）を最大化</b>することを目指してください。</p>
-     <p class="small">各アームの当たり確率は時々刻々と変化します。過去の結果を手掛かりに、より期待値の高い選択を続けるのがポイントです。終了時に<b>合計スコア</b>が表示されます。</p>`;
+     <p class="small">各アームの当たり確率は時々刻々と変化します。過去の結果を手掛かりに、より期待値の高い選択を続けるのがポイントです。</p>`;
 
-  // ③ 確率デモ（静的）
+  // ③ 制限時間の明示
+  const pageDeadline =
+    `<h3>選択の制限時間</h3>
+     <p>各試行の<b>選択には制限時間</b>があります（<b>約 ${CONFIG.DECISION_MS} ms</b>）。</p>
+     <p><b>時間内に F/J のキー入力がない場合</b>は、<b>時間切れ</b>として扱い、その試行の報酬は<b>0</b>になります。</p>
+     <p class="small">時間切れの場合でも次の試行へ自動的に進みます（環境確率はゆっくり変動し続けます）。</p>`;
+
+  // ④ 確率デモ（静的）
   const pageDemo =
     `<p>当たり確率（0.25–0.75）は、下のように<b>ゆっくり変動</b>します（デモ）。</p>
      ${demoHTML}
      <p class="small" style="margin-top:6px;">※ 本番では確率は表示されません。朝/夜セッションでは<b>異なる擬似乱数系列</b>が用いられます。</p>`;
 
-  // ④ 模擬：選択画面（F/J案内・このページは「次へ」で遷移）
+  // ⑤ 模擬：選択画面（このページは「次へ」で遷移）
   const pageMockChoice =
     `<div class="mock-title">【模擬】選択画面</div>
-     <div class="small">実際の課題では <b>F=左 / J=右</b> で即時に選択が確定します。</div>
+     <div class="small">実際の課題では <b>F=左 / J=右</b> で即時に選択が確定します（<b>制限時間 約 ${CONFIG.DECISION_MS}ms</b>）。</div>
      <div class="choice-row" style="gap:96px; margin-top:16px;">
        ${stimBlockHTML('left')}
        ${stimBlockHTML('right')}
      </div>
      <div class="mock-note">※ 本インストラクションでは<b>ボタン（次へ）</b>で遷移します。</div>`;
 
-  // ⑤ 模擬：フィードバック画面（duration は文言で）
+  // ⑥ 模擬：フィードバック画面（duration は文言で）
   const pageMockFeedback =
     `<div class="mock-title">【模擬】フィードバック画面</div>
      <div class="jspsych-content"><div class="feedback win">✓ +1</div></div>
      <div class="mock-note">実際の課題では <b>約 ${CONFIG.FEEDBACK_MS}ms</b> 提示されます。</div>`;
 
-  // ⑥ 模擬：ITI 画面（空白・duration は文言で）
+  // ⑦ 模擬：ITI 画面（空白・duration は文言で）
   const pageMockITI =
     `<div class="mock-title">【模擬】ITI（休止）</div>
      <div class="mock-blank">（空白）</div>
      <div class="mock-note">実際の課題では <b>約 ${CONFIG.ITI_MS}ms</b> の空白画面が表示されます。</div>`;
 
-  // ⑦ ここから本試行の案内
+  // ⑧ ここから本試行の案内
   const pageReady =
     `<p>${SESSION === 'instruction'
         ? `このセッションの練習試行数は <b>${TOTAL_TRIALS}</b> です。`
         : `このセッションは <b>${TOTAL_TRIALS}</b> 試行です。`
       }</p>
-     <p>準備ができたら「次へ」を押してください（本番では選択後に自動で画面が切り替わります）。</p>`;
+     <p>準備ができたら「次へ」を押してください（本番では選択→フィードバック→ITI が自動で進行します）。</p>`;
 
   const instructions = {
     type: jsPsychInstructions,
-    pages: [pageIntro, pagePurpose, pageDemo, pageMockChoice, pageMockFeedback, pageMockITI, pageReady],
+    pages: [pageIntro, pagePurpose, pageDeadline, pageDemo, pageMockChoice, pageMockFeedback, pageMockITI, pageReady],
     show_clickable_nav: true,
     button_label_next: '次へ',
     button_label_previous: '戻る'
   };
 
-  // --- Trial (keyboard only) ---
+  // --- Trial (keyboard only, with deadline) ---
   function trialFactory(tIndex){
     return {
       type: jsPsychHtmlKeyboardResponse,
@@ -243,30 +252,53 @@ document.addEventListener('DOMContentLoaded', () => {
           ${stimBlockHTML('left')}
           ${stimBlockHTML('right')}
         </div>
-        <div class="small" style="margin-top:16px;">キーで選択してください（<b>F=左 / J=右</b>）</div>
+        <div class="small" style="margin-top:16px;">
+          キーで選択してください（<b>F=左 / J=右</b>、<b>制限時間 約 ${CONFIG.DECISION_MS}ms</b>）
+        </div>
       `,
       choices: ['f','j'],
       response_ends_trial: true,
+      trial_duration: CONFIG.DECISION_MS, // ★デッドライン
       on_finish: (data) => {
-        const key = String(data.response || '').toLowerCase();
-        const choice = (key === 'f') ? 'L' : 'R';
-        const pChosen = (choice==='L') ? pL : pR;
+        const isTimeout = (data.response === null || data.response === undefined);
+        let choice = null;
+        let reward = 0;
 
-        const reward = (rngRew() < pChosen) ? 1 : 0;
+        if (!isTimeout) {
+          const key = String(data.response || '').toLowerCase();
+          choice = (key === 'f') ? 'L' : 'R';
+          const pChosen = (choice==='L') ? pL : pR;
+          reward = (rngRew() < pChosen) ? 1 : 0;
+        } else {
+          // 時間切れ：報酬0、選択なし
+          choice = null;
+          reward = 0;
+        }
 
         rows.push({
           pid: PID, session: SESSION, trial: tIndex+1,
-          choice, reward, rt: data.rt,
+          choice, timeout: isTimeout ? 1 : 0,
+          reward, rt: data.rt,
           p_left: pL.toFixed(3), p_right: pR.toFixed(3),
           stim_left: STIM_MAP.left, stim_right: STIM_MAP.right
         });
 
+        // 環境は試行ごとに緩やかに変化（選択の有無に関わらず）
         pL = rwStepSeed(pL, CONFIG.STEP, rngEnv);
         pR = rwStepSeed(pR, CONFIG.STEP, rngEnv);
 
-        data.__choice = choice;
-        data.__fb_text  = reward ? '✓ +1' : '× 0';
-        data.__fb_class = reward ? 'win'   : 'lose';
+        // 後段の画面用の付帯情報
+        if (isTimeout) {
+          data.__timeout = true;
+          data.__choice = null;
+          data.__fb_text  = '時間切れ';
+          data.__fb_class = 'lose';
+        } else {
+          data.__timeout = false;
+          data.__choice = choice;
+          data.__fb_text  = reward ? '✓ +1' : '× 0';
+          data.__fb_class = reward ? 'win'   : 'lose';
+        }
       }
     };
   }
@@ -277,26 +309,37 @@ document.addEventListener('DOMContentLoaded', () => {
     // 選択
     timeline.push(trialFactory(t));
 
-    // ACK
+    // ACK（選択確認／時間切れ時は未選択のまま）
     timeline.push({
       type: jsPsychHtmlKeyboardResponse,
       stimulus: function(){
         const last = jsPsych.data.get().last(1).values()[0] || {};
-        const ch = last.__choice || 'L';
-        const lSel = (ch === 'L'), rSel = (ch === 'R');
-        return `
-          <div class="choice-row" style="gap:96px; margin-top:18px;">
-            ${stimBlockHTML('left', lSel)}
-            ${stimBlockHTML('right', rSel)}
-          </div>
-          <div class="small" style="margin-top:8px;">選択を確認中…</div>
-        `;
+        const timedout = !!last.__timeout;
+        if (timedout) {
+          return `
+            <div class="choice-row" style="gap:96px; margin-top:18px;">
+              ${stimBlockHTML('left', false)}
+              ${stimBlockHTML('right', false)}
+            </div>
+            <div class="small" style="margin-top:8px;">時間切れ</div>
+          `;
+        } else {
+          const ch = last.__choice || 'L';
+          const lSel = (ch === 'L'), rSel = (ch === 'R');
+          return `
+            <div class="choice-row" style="gap:96px; margin-top:18px;">
+              ${stimBlockHTML('left', lSel)}
+              ${stimBlockHTML('right', rSel)}
+            </div>
+            <div class="small" style="margin-top:8px;">選択を確認中…</div>
+          `;
+        }
       },
       choices: "NO_KEYS",
       trial_duration: CONFIG.ACK_MS
     });
 
-    // フィードバック
+    // フィードバック（時間切れなら「時間切れ」を表示）
     timeline.push({
       type: jsPsychHtmlKeyboardResponse,
       stimulus: function(){
