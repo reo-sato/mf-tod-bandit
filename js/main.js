@@ -1,10 +1,9 @@
 /* mf-tod-bandit main (v8 UMD, keyboard only, Firebase save) */
 const CONFIG = {
-  N_TRIALS: 10,
+  N_TRIALS: 400,
   STEP: 0.03,          // 環境確率のランダムウォーク幅
   ITI_MS: 400,         // 空白（インタートライアル）ms
-  FEEDBACK_MS: 700,    // フィードバック表示ms
-  GAS_ENDPOINT: null   // （未使用）GAS連携を使う場合のみ
+  FEEDBACK_MS: 700     // フィードバック表示ms
 };
 
 // URL パラメータ
@@ -39,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  // Firebase 初期化（あれば使用）
+  // Firebase 初期化
   const fbInit = (typeof initFirebase === 'function') ? initFirebase() : { ok:false };
   const USE_FIREBASE = !!fbInit.ok;
 
@@ -139,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pL = rwStep(pL, CONFIG.STEP);
         pR = rwStep(pR, CONFIG.STEP);
 
-        // 次のフィードバック用に保存
+        // 次のフィードバック用
         data.__feedback = reward ? '✓ +1' : '× 0';
         data.__feedbackClass = reward ? 'win' : 'lose';
       }
