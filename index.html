@@ -4,29 +4,29 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>2-Arm Bandit (0/1 Reward)</title>
-  <link rel="icon" href="data:,"><!-- favicon 404抑止 -->
-  <!-- jsPsych CSS（unpkg） -->
+  <link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://unpkg.com">
   <link rel="stylesheet" href="https://unpkg.com/jspsych@8.2.2/css/jspsych.css" />
-  <!-- App CSS -->
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
   <noscript>この実験を実行するには JavaScript を有効にしてください。</noscript>
   <div id="jspsych-target"></div>
 
-  <!-- jsPsych core & plugins (UMD; defer なし／この順番のまま) -->
-  <script src="https://unpkg.com/jspsych@8.2.2/dist/index.umd.js"></script>
-  <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.2.0/dist/index.umd.js"></script>
-  <script src="https://unpkg.com/@jspsych/plugin-instructions@2.1.0/dist/index.umd.js"></script>
+  <!-- jsPsych v8 + plugins（UMD, ルート指定。defer なし＝先に実行） -->
+  <script src="https://unpkg.com/jspsych@8.2.2"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-instructions@2.1.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-preload@2.1.0"></script>
 
-  <!-- Firebase (compat) -->
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <!-- Firebase SDK（compat 版） -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 
-  <!-- そのまま（自作は defer）-->
-  <script src="js/utils.js" defer></script>
+  <!-- アプリ本体（defer のまま。firebase.js→utils.js→main.js の順） -->
   <script src="js/firebase.js" defer></script>
+  <script src="js/utils.js" defer></script>
   <script src="js/main.js" defer></script>
 </body>
 </html>
