@@ -1,16 +1,19 @@
 /* mf-tod-bandit main (v8 UMD, keyboard only, Firebase save)
    - 図形刺激で左右を視覚的に差別化（左=○ / 右=△）
    - セッション 'instruction'（または instr/instructions）に対応
-   - NEW: 選択直後に「選択確認(ACK)」画面を短時間表示 → その後に結果フィードバック
+   - 選択確認(ACK)を追加（中立チェックを短時間表示）
+   - NEW: インストラクション内に「確率がゆっくり変動するデモ」を挿入（本番では非表示）
 */
 
 const CONFIG = {
-  N_TRIALS: 400,         // 本試行
-  INSTR_PRACTICE_N: 10,  // インストラクション時の練習試行（0なら説明のみ）
-  STEP: 0.03,            // 環境確率ランダムウォーク幅
-  ACK_MS: 250,           // ★ 選択確認(ACK)の表示時間（ms）
-  FEEDBACK_MS: 700,      // 結果フィードバック表示（ms）
-  ITI_MS: 400,           // インタートライアル（ms）
+  N_TRIALS: 400,          // 本試行
+  INSTR_PRACTICE_N: 10,   // インストラクション時の練習試行（0なら説明のみ）
+  STEP: 0.03,             // 環境確率ランダムウォーク幅（本番）
+  PROB_DEMO_MS: 5000,     // ★ 確率デモの表示時間（ms）
+  PROB_DEMO_STEP: 0.025,  // ★ デモ用ランダムウォーク幅（見やすさ重視）
+  ACK_MS: 250,            // 選択確認(ACK)の表示時間（ms）
+  FEEDBACK_MS: 700,       // 結果フィードバック表示（ms）
+  ITI_MS: 400,            // インタートライアル（ms）
   COUNTERBALANCE_BY_PID: false // true: PIDで○/△の左右を入替
 };
 
@@ -24,7 +27,7 @@ const PID = getParam('pid', `P${Math.random().toString(36).slice(2,8)}`);
 // 実行試行数
 const TOTAL_TRIALS = (SESSION === 'instruction') ? CONFIG.INSTR_PRACTICE_N : CONFIG.N_TRIALS;
 
-// 環境確率（左右独立）
+// 環境確率（左右独立；本番用）
 let pL = 0.5, pR = 0.5;
 
 // ログ
@@ -56,11 +59,13 @@ const STIM_MAP = (() => {
     : { left: 'circle', right: 'triangle' };
 })();
 
+function svgFor(side){ return (STIM_MAP[side] === 'circle') ? svgCircle() : svgTriangle(); }
+
 // 図形ブロックHTML（selected=trueでACK用ハイライト＋中立チェック表示）
 function stimBlockHTML(side /* 'left'|'right' */, selected=false) {
   const labelTop = (side === 'left') ? '左' : '右';
   const keyLabel = (side === 'left') ? 'F' : 'J';
-  const svg = (STIM_MAP[side] === 'circle') ? svgCircle() : svgTriangle();
+  const svg = svgFor(side);
   const selClass = selected ? ' selected' : '';
   const ack = selected ? `<div class="ackmark" aria-hidden="true">✓</div>` : '';
   return `
@@ -152,23 +157,86 @@ document.addEventListener('DOMContentLoaded', () => {
     ? `<p>このセッションの練習試行数は <b>${TOTAL_TRIALS}</b> です（0 なら説明のみ）。</p>`
     : `<p>このセッションは <b>${TOTAL_TRIALS}</b> 試行です。</p>`;
 
+  const pages = [
+    introBody,
+    `<p>下のように表示されます。</p>
+     <div class="choice-row" style="justify-content:center;gap:96px;margin:24px 0;">
+       ${stimBlockHTML('left')}
+       ${stimBlockHTML('right')}
+     </div>
+     <p><b>F = 左</b>、<b>J = 右</b> で選択します。</p>
+     <p>選択後は<b>短い確認画面</b>（中立色のチェック）が表示された後、結果（✓ +1 / × 0）が提示されます。</p>
+     ${countLine}
+     ${(SESSION==='instruction' && CONFIG.PROB_DEMO_MS>0)
+       ? '<p>次の画面で「確率がゆっくり変化する様子」の<b>デモ</b>を数秒だけ表示します（本番では確率は表示されません）。</p>'
+       : '<p>準備ができたら「次へ」を押してください。</p>'}`
+  ];
+
   const instructions = {
     type: jsPsychInstructions,
-    pages: [
-      introBody,
-      `<p>下のように表示されます。</p>
-       <div class="choice-row" style="justify-content:center;gap:96px;margin:24px 0;">
-         ${stimBlockHTML('left')}
-         ${stimBlockHTML('right')}
-       </div>
-       <p><b>F = 左</b>、<b>J = 右</b> で選択します。</p>
-       <p>選択後は<b>短い確認画面</b>（中立色のチェック）が表示された後、結果（✓ +1 / × 0）が提示されます。</p>
-       ${countLine}
-       <p>準備ができたら「次へ」を押してください。</p>`
-    ],
+    pages,
     show_clickable_nav: true,
     button_label_next: '次へ',
     button_label_previous: '戻る'
+  };
+
+  // --- 確率デモ（instruction セッションのみ） ---
+  const probDemoTrial = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: function(){
+      // デモ用UI（本番とは独立）
+      return `
+        <div class="small">確率が時間とともにゆっくり変化するデモ（本番では確率は非表示）</div>
+        <div class="choice-row" style="gap:96px; margin-top:18px;">
+          <div class="col">
+            <div class="stim-box">${svgFor('left')}</div>
+            <div class="prob-track"><div id="fillL" class="prob-fill" style="width:50%"></div></div>
+            <div class="prob-label">デモ確率（左）: <span id="txtL">0.50</span></div>
+          </div>
+          <div class="col">
+            <div class="stim-box">${svgFor('right')}</div>
+            <div class="prob-track"><div id="fillR" class="prob-fill" style="width:50%"></div></div>
+            <div class="prob-label">デモ確率（右）: <span id="txtR">0.50</span></div>
+          </div>
+        </div>
+        <div class="small" style="margin-top:12px;">この画面は<b>デモ</b>です。数秒後に自動で次へ進みます。</div>
+      `;
+    },
+    choices: "NO_KEYS",
+    trial_duration: CONFIG.PROB_DEMO_MS,
+    on_load: () => {
+      // デモ用の独立 RW（本番の pL/pR と無関係）
+      let dl = 0.5, dr = 0.5;
+      const step = CONFIG.PROB_DEMO_STEP;
+      const $fillL = document.getElementById('fillL');
+      const $fillR = document.getElementById('fillR');
+      const $txtL = document.getElementById('txtL');
+      const $txtR = document.getElementById('txtR');
+
+      function clamp(v){ return Math.max(0.25, Math.min(0.75, v)); }
+      function stepOnce(v){
+        const s = (Math.random()<0.5 ? -step : step);
+        let nv = v + s;
+        if (nv < 0.25) nv = 0.25 + (0.25 - nv);
+        if (nv > 0.75) nv = 0.75 - (nv - 0.75);
+        return clamp(nv);
+      }
+
+      window.__probDemoTimer = setInterval(()=>{
+        dl = stepOnce(dl);
+        dr = stepOnce(dr);
+        if ($fillL) $fillL.style.width = `${Math.round(dl*100)}%`;
+        if ($fillR) $fillR.style.width = `${Math.round(dr*100)}%`;
+        if ($txtL) $txtL.textContent = dl.toFixed(2);
+        if ($txtR) $txtR.textContent = dr.toFixed(2);
+      }, 120);
+    },
+    on_finish: () => {
+      if (window.__probDemoTimer){
+        clearInterval(window.__probDemoTimer);
+        delete window.__probDemoTimer;
+      }
+    }
   };
 
   // --- 1試行（キー押し） ---
@@ -207,12 +275,11 @@ document.addEventListener('DOMContentLoaded', () => {
           stim_right: STIM_MAP.right
         });
 
-        // 次試行に向けて環境確率を先に更新（結果は次のフィードバックで提示）
+        // 次試行に向けて本番用 RW を更新
         pL = rwStep(pL, CONFIG.STEP);
         pR = rwStep(pR, CONFIG.STEP);
 
-        // 後続のACK/フィードバック用フラグ
-        data.__choice = choice;                           // 'L' | 'R'
+        data.__choice = choice;
         data.__feedbackText = reward ? '✓ +1' : '× 0';
         data.__feedbackClass = reward ? 'win' : 'lose';
       }
@@ -222,11 +289,17 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- タイムライン ---
   const timeline = [instructions];
 
+  // instruction セッションのときだけ、確率デモを挿入
+  if (SESSION === 'instruction' && CONFIG.PROB_DEMO_MS > 0){
+    timeline.push(probDemoTrial);
+  }
+
+  // 練習/本番
   for (let t=0; t<TOTAL_TRIALS; t++){
     // 1) 選択
     timeline.push(trialFactory(t));
 
-    // 2) 選択確認（ACK）：選んだ側だけ淡い枠＋中立チェック。キー入力不可
+    // 2) 選択確認（ACK）
     timeline.push({
       type: jsPsychHtmlKeyboardResponse,
       stimulus: function(){
@@ -234,21 +307,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const ch = last.__choice || 'L';
         const lSel = (ch === 'L'), rSel = (ch === 'R');
         return `
-          <div class="small">
-            PID: ${PID} / Session: ${SESSION} / Trial ${t+1}
-          </div>
-          <div class="choice-row" style="gap:96px; margin-top:24px;">
+          <div class="small">選択を確認中…</div>
+          <div class="choice-row" style="gap:96px; margin-top:18px;">
             ${stimBlockHTML('left', lSel)}
             ${stimBlockHTML('right', rSel)}
           </div>
-          <div class="small" style="margin-top:16px;">選択を確認中…</div>
         `;
       },
       choices: "NO_KEYS",
       trial_duration: CONFIG.ACK_MS
     });
 
-    // 3) 結果フィードバック（✓ +1 / × 0）：キー入力不可
+    // 3) 結果フィードバック（✓ +1 / × 0）
     timeline.push({
       type: jsPsychHtmlKeyboardResponse,
       stimulus: function(){
@@ -261,7 +331,7 @@ document.addEventListener('DOMContentLoaded', () => {
       trial_duration: CONFIG.FEEDBACK_MS
     });
 
-    // 4) ITI（キー入力不可）
+    // 4) ITI
     if (CONFIG.ITI_MS > 0){
       timeline.push({
         type: jsPsychHtmlKeyboardResponse,
