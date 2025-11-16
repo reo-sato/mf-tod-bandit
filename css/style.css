@@ -41,12 +41,12 @@ body { background: #0e0f12; color: #eef2f7; font-family: system-ui, -apple-syste
 .legend .swatchL { display:inline-block; width:18px; height:0; border-bottom:3px solid #9ecbff; }
 .legend .swatchR { display:inline-block; width:18px; height:0; border-bottom:3px dashed #fca5a5; }
 
-/* ===== ここからが中央配置の“必要最小限” ===== */
+/* ===== ここから中央配置の“必要最小限”だけ追加 ===== */
 html, body { height: 100%; }
 #jspsych-target, .jspsych-display-element {
-  min-height: 100vh;           /* 画面の縦センタリングに必要 */
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.jspsych-content { text-align: center; } /* 横方向のセンタリング（文言・刺激） */
+.jspsych-content { text-align: center; }
