@@ -2,7 +2,7 @@
 
 // ★ここに Firebase コンソールで取得した設定値を入れてください。
 // 例）const FIREBASE_CONFIG = { apiKey: "...", authDomain: "...", projectId: "...", ... };
-const FIREBASE_CONFIG = // For Firebase JS SDK v7.20.0 and later, measurementId is optional {
+const FIREBASE_CONFIG ={
   apiKey: "AIzaSyCSt4SKKSpsJMosQ2WUXFxBi9QWDAQYYXE",
   authDomain: "bandit-tod.firebaseapp.com",
   projectId: "bandit-tod",
