@@ -1,6 +1,4 @@
 /* firebase init & save (Firestore compat) */
-
-// === your provided config ===
 const firebaseConfig = {
   apiKey: "AIzaSyCSt4SKKSpsJMosQ2WUXFxBi9QWDAQYYXE",
   authDomain: "bandit-tod.firebaseapp.com",
@@ -11,7 +9,6 @@ const firebaseConfig = {
   measurementId: "G-9VE06HSBHN"
 };
 
-// enable anonymous auth? (Consoleで匿名を有効化しているならtrue推奨)
 const ENABLE_ANON_AUTH = true;
 
 (function () {
@@ -43,7 +40,7 @@ const ENABLE_ANON_AUTH = true;
       pid: payload.pid, session: payload.session, total: payload.total, n: payload.n,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       clientTime: new Date().toISOString(),
-      agent: 'bandit_v8_keyboard_centered',
+      agent: 'bandit_v8_keyboard',
       userAgent: navigator.userAgent
     };
     const doc = { ...meta, trials: payload.trials || [] };
