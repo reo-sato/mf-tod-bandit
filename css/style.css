@@ -13,7 +13,7 @@ body { background: #0e0f12; color: #eef2f7; font-family: system-ui, -apple-syste
 .choice-row { display: flex; justify-content: center; gap: 48px; margin-top: 24px; flex-wrap: wrap; }
 .col { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 
-/* Stimulus boxes (monochrome, equal salience) */
+/* 刺激（図形）ボックス（モノクロ・等輝度） */
 .stim-box {
   position: relative;
   width: 140px;
@@ -25,27 +25,12 @@ body { background: #0e0f12; color: #eef2f7; font-family: system-ui, -apple-syste
   color: #d1d5db;  /* svg stroke uses currentColor */
 }
 .stim-box svg { display: block; }
-
-/* ACK: 選択側の控えめハイライト（中立色・等輝度） */
-.stim-box.selected {
-  outline: 3px solid #e5e7eb;
-  box-shadow: 0 0 0 2px #e5e7eb inset;
-}
-
-/* ACK: 中立チェックマーク（報酬でないことを示すため緑ではなく薄灰） */
-.ackmark {
-  position: absolute;
-  top: -10px; right: -10px;
-  font-size: 28px;
-  line-height: 1;
-  color: #e5e7eb;
-  background: rgba(17, 20, 24, 0.9);
-  border: 1px solid #3a3f47;
-  border-radius: 10px;
-  padding: 2px 6px;
-}
-
 .stim-label { font-size: 18px; color: #cdd6e3; }
+
+/* ACK（必要なら使う） */
+.stim-box.selected { outline: 3px solid #e5e7eb; box-shadow: 0 0 0 2px #e5e7eb inset; }
+.ackmark { position: absolute; top: -10px; right: -10px; font-size: 28px; line-height: 1; color: #e5e7eb;
+  background: rgba(17,20,24,0.9); border: 1px solid #3a3f47; border-radius: 10px; padding: 2px 6px; }
 
 /* --- 折れ線デモ（SVG） --- */
 .chart-wrap { max-width: 720px; margin: 10px auto 0; }
@@ -54,19 +39,6 @@ body { background: #0e0f12; color: #eef2f7; font-family: system-ui, -apple-syste
 .axisLabel { fill: #cdd6e3; font-size: 12px; opacity: .8; }
 .lineL { stroke: #9ecbff; stroke-width: 2.5; fill: none; }
 .lineR { stroke: #fca5a5; stroke-width: 2.5; fill: none; stroke-dasharray: 6 4; }
-
-.legend {
-  margin-top: 6px;
-  font-size: 14px;
-  color: #cdd6e3;
-  display: flex;
-  gap: 18px;
-  justify-content: center;
-  align-items: center;
-}
-.legend .swatchL {
-  display:inline-block; width:18px; height:0; border-bottom:3px solid #9ecbff;
-}
-.legend .swatchR {
-  display:inline-block; width:18px; height:0; border-bottom:3px dashed #fca5a5;
-}
+.legend { margin-top: 6px; font-size: 14px; color: #cdd6e3; display: flex; gap: 18px; justify-content: center; align-items: center; }
+.legend .swatchL { display:inline-block; width:18px; height:0; border-bottom:3px solid #9ecbff; }
+.legend .swatchR { display:inline-block; width:18px; height:0; border-bottom:3px dashed #fca5a5; }
