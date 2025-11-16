@@ -39,7 +39,7 @@ p_right: pR.toFixed(3)
 pL = rwStep(pL, CONFIG.STEP);
 pR = rwStep(pR, CONFIG.STEP);
 }
-};
+
 }
 
 
