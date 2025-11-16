@@ -1,5 +1,6 @@
 /* mf-tod-bandit main (jsPsych v8 UMD)
    - インストラクション: 静的「確率折れ線」デモ + 実画面を模した遷移（選択→FB→ITI）
+   - 目的意識の明示（課題全体の報酬最大化）
    - キー操作のみ（F=左 / J=右）
    - 環境RW＆報酬サンプルは「朝/晩/被験者」でシード分離
    - Firebase保存（失敗時はCSVフォールバック）
@@ -178,13 +179,20 @@ document.addEventListener('DOMContentLoaded', () => {
          <p>各アームの当たり確率は時間とともに<b>ゆっくり変化</b>します（0.25–0.75）。</p>
          <p>報酬は <b>当たり=1 / はずれ=0</b> です。</p>`);
 
-  // ② 確率デモ（静的）
+  // ② 目的意識（新規追加）
+  const pagePurpose =
+    `<h3>この課題の目的</h3>
+     <p>どちらの選択肢が<b>より当たりやすい</b>かを試行を通して<b>学習</b>し、</p>
+     <p><b>課題全体</b>で獲得できる<b>報酬（当たり=1）を最大化</b>することを目指してください。</p>
+     <p class="small">各アームの当たり確率は時々刻々と変化します。過去の結果を手掛かりに、より期待値の高い選択を続けるのがポイントです。終了時に<b>合計スコア</b>が表示されます。</p>`;
+
+  // ③ 確率デモ（静的）
   const pageDemo =
     `<p>当たり確率（0.25–0.75）は、下のように<b>ゆっくり変動</b>します（デモ）。</p>
      ${demoHTML}
      <p class="small" style="margin-top:6px;">※ 本番では確率は表示されません。朝/夜セッションでは<b>異なる擬似乱数系列</b>が用いられます。</p>`;
 
-  // ③ 模擬：選択画面（F/J案内・このページは「次へ」で遷移）
+  // ④ 模擬：選択画面（F/J案内・このページは「次へ」で遷移）
   const pageMockChoice =
     `<div class="mock-title">【模擬】選択画面</div>
      <div class="small">実際の課題では <b>F=左 / J=右</b> で即時に選択が確定します。</div>
@@ -194,19 +202,19 @@ document.addEventListener('DOMContentLoaded', () => {
      </div>
      <div class="mock-note">※ 本インストラクションでは<b>ボタン（次へ）</b>で遷移します。</div>`;
 
-  // ④ 模擬：フィードバック画面（duration は文言で）
+  // ⑤ 模擬：フィードバック画面（duration は文言で）
   const pageMockFeedback =
     `<div class="mock-title">【模擬】フィードバック画面</div>
      <div class="jspsych-content"><div class="feedback win">✓ +1</div></div>
      <div class="mock-note">実際の課題では <b>約 ${CONFIG.FEEDBACK_MS}ms</b> 提示されます。</div>`;
 
-  // ⑤ 模擬：ITI 画面（空白・duration は文言で）
+  // ⑥ 模擬：ITI 画面（空白・duration は文言で）
   const pageMockITI =
     `<div class="mock-title">【模擬】ITI（休止）</div>
      <div class="mock-blank">（空白）</div>
      <div class="mock-note">実際の課題では <b>約 ${CONFIG.ITI_MS}ms</b> の空白画面が表示されます。</div>`;
 
-  // ⑥ ここから本試行の案内
+  // ⑦ ここから本試行の案内
   const pageReady =
     `<p>${SESSION === 'instruction'
         ? `このセッションの練習試行数は <b>${TOTAL_TRIALS}</b> です。`
@@ -216,7 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const instructions = {
     type: jsPsychInstructions,
-    pages: [pageIntro, pageDemo, pageMockChoice, pageMockFeedback, pageMockITI, pageReady],
+    pages: [pageIntro, pagePurpose, pageDemo, pageMockChoice, pageMockFeedback, pageMockITI, pageReady],
     show_clickable_nav: true,
     button_label_next: '次へ',
     button_label_previous: '戻る'
