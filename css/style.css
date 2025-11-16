@@ -1,4 +1,4 @@
-/* 既存ベース */
+/* ===== 既存スタイル ===== */
 body { background: #0e0f12; color: #eef2f7; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
 .jspsych-content { max-width: 780px; margin: 0 auto; }
 .big { font-size: 28px; }
@@ -25,12 +25,12 @@ body { background: #0e0f12; color: #eef2f7; font-family: system-ui, -apple-syste
 .stim-box svg { display: block; }
 .stim-label { font-size: 18px; color: #cdd6e3; }
 
-/* ACK（使う場合） */
+/* ACK（必要時） */
 .stim-box.selected { outline: 3px solid #e5e7eb; box-shadow: 0 0 0 2px #e5e7eb inset; }
 .ackmark { position: absolute; top: -10px; right: -10px; font-size: 28px; line-height: 1; color: #e5e7eb;
   background: rgba(17,20,24,0.9); border: 1px solid #3a3f47; border-radius: 10px; padding: 2px 6px; }
 
-/* 静的折れ線デモ */
+/* 静的折れ線デモ（必要に応じて使用） */
 .chart-wrap { max-width: 720px; margin: 10px auto 0; }
 #probDemo { width: 100%; height: 260px; background: #111418; border: 1px solid #3a3f47; border-radius: 12px; }
 .grid { stroke: #2b3038; stroke-width: 1; }
@@ -41,12 +41,21 @@ body { background: #0e0f12; color: #eef2f7; font-family: system-ui, -apple-syste
 .legend .swatchL { display:inline-block; width:18px; height:0; border-bottom:3px solid #9ecbff; }
 .legend .swatchR { display:inline-block; width:18px; height:0; border-bottom:3px dashed #fca5a5; }
 
-/* ===== ここから中央配置の“必要最小限”だけ追加 ===== */
+/* ===== ここから中央配置の“追加”だけ（レイアウト以外は不変） ===== */
 html, body { height: 100%; }
-#jspsych-target, .jspsych-display-element {
-  min-height: 100vh;
-  display: flex;
+
+#jspsych-target,
+.jspsych-display-element {
+  min-height: 100vh;               /* 画面高いっぱいに */
+  display: flex;                    /* フレックスで中央寄せ */
+  align-items: center;              /* 垂直中央 */
+  justify-content: center;          /* 水平中央 */
+}
+
+.jspsych-content {
+  text-align: center;               /* テキスト・刺激の中央揃え */
+  display: flex;                    /* 必要に応じて中身も中央に */
+  flex-direction: column;
   align-items: center;
   justify-content: center;
 }
-.jspsych-content { text-align: center; }
