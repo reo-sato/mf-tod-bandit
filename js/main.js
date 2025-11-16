@@ -12,7 +12,7 @@ const SESSION = (getParam('session','morning')||'').toLowerCase();
 const PID     = getParam('pid', `P${Math.random().toString(36).slice(2,8)}`);
 
 // 環境確率（左右独立ランダムウォーク）
-let pL = 0.5, pR = 0.5;
+let pL = 0.35, pR = 0.6;
 
 // ログ
 const rows = [];
