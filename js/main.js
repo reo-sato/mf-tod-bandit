@@ -10,7 +10,7 @@
 */
 
 const CONFIG = {
-  N_TRIALS: 400,           // 本試行
+  N_TRIALS: 200,           // 本試行
   INSTR_PRACTICE_N: 10,    // instruction セッションの練習試行（0で説明のみは 0）
   STEP: 0.03,              // 環境RW幅（反射境界 0.25–0.75）
   DECISION_MS: 2000,       // 選択の制限時間（ms）
