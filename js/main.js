@@ -3,8 +3,8 @@
    - 目的意識の明示（課題全体の報酬最大化）
    - 選択に制限時間（デッドライン）を追加：時間切れは報酬0で進行
    - キー操作のみ（F=左 / J=右）
-   - ★ 報酬確率は “真のランダムウォーク”（Math.random, 非シード）に変更
-   - ★ 初期確率は範囲内の一様乱数で設定
+   - ★ 本番の報酬確率は “真のランダムウォーク”（Math.random, 非シード）
+   - ★ インストラクションの折れ線は「セッション別 seed の擬似乱数」で生成（見本用）
    - Firebase保存（失敗時はCSVフォールバック）
 */
 
@@ -72,21 +72,26 @@ function stimBlockHTML(side, selected=false){
   `;
 }
 
-/* ==== 静的・折れ線デモ ==== */
-// ★ デモ系列も真ランダム（Math.random）で生成（朝/晩で固定差を設けない）
-function genDemoSeries(n){
+/* ==== インストラクション用・静的折れ線デモ（セッション別 seed の擬似乱数） ==== */
+// utils.js の makeRng を使用
+function genDemoSeries(session, n){
+  const rng = makeRng(`demo:${session||'na'}`); // morning/evening で異なる見本
   const step = CONFIG.DEMO_STEP;
-  let l = randRange(P_LO, P_HI);
-  let r = randRange(P_LO, P_HI);
+  const rand = () => rng();
+  const lo = P_LO, hi = P_HI;
+  let l = lo + (hi - lo) * rand();
+  let r = lo + (hi - lo) * rand();
   const L=[l], R=[r];
   for(let i=1;i<n;i++){
-    l = rwStepTrue(l, step);
-    r = rwStepTrue(r, step);
-    // 視認性のため、必要に応じて乖離を少し確保（任意・軽微）
+    const s1 = (rand() < 0.5 ? -step : step);
+    const s2 = (rand() < 0.5 ? -step : step);
+    l = reflect(l + s1, lo, hi);
+    r = reflect(r + s2, lo, hi);
+    // 視認性のための軽い乖離確保
     const gap = Math.abs(l - r);
     if (gap < 0.12){
-      l = reflect(l - 0.01, P_LO, P_HI);
-      r = reflect(r + 0.01, P_LO, P_HI);
+      if (l < r) { l = reflect(l - 0.01, lo, hi); r = reflect(r + 0.01, lo, hi); }
+      else       { r = reflect(r - 0.01, lo, hi); l = reflect(l + 0.01, lo, hi); }
     }
     L.push(l); R.push(r);
   }
@@ -177,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // --- Instruction pages ---
-  const demoHTML = buildDemoChartHTML(genDemoSeries(CONFIG.DEMO_POINTS));
+  const demoHTML = buildDemoChartHTML(genDemoSeries(SESSION, CONFIG.DEMO_POINTS));
 
   // ① 概要
   const pageIntro =
@@ -205,11 +210,11 @@ document.addEventListener('DOMContentLoaded', () => {
      <p><b>時間内に F/J のキー入力がない場合</b>は、<b>時間切れ</b>として扱い、その試行の報酬は<b>0</b>になります。</p>
      <p class="small">時間切れの場合でも次の試行へ自動的に進みます（当たり確率の変動は継続します）。</p>`;
 
-  // ④ 確率デモ（静的）
+  // ④ 確率デモ（静的・seed付き見本）
   const pageDemo =
-    `<p>当たり確率（${P_LO.toFixed(2)}–${P_HI.toFixed(2)}）は、下のように<b>ゆっくり変動</b>します（デモ）。</p>
+    `<p>当たり確率（${P_LO.toFixed(2)}–${P_HI.toFixed(2)}）は、下のように<b>ゆっくり変動</b>します（見本）。</p>
      ${demoHTML}
-     <p class="small" style="margin-top:6px;">※ 本番では確率は表示されません。</p>`;
+     <p class="small" style="margin-top:6px;">※ この折れ線は<b>見本（セッションごとに固定）</b>です。本番では確率は表示されません。</p>`;
 
   // ⑤ 模擬：選択画面（このページは「次へ」で遷移）
   const pageMockChoice =
@@ -279,7 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
           choice = (key === 'f') ? 'L' : 'R';
           const pChosen = (choice==='L') ? pL : pR;
 
-          // ★ 報酬サンプルも Math.random（非シード）
+          // ★ 報酬サンプルは Math.random（非シード）
           reward = (Math.random() < pChosen) ? 1 : 0;
         } else {
           // 時間切れ：報酬0、選択なし
@@ -295,7 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
           stim_left: STIM_MAP.left, stim_right: STIM_MAP.right
         });
 
-        // ★ 真ランダムウォーク（反射境界）：選択有無に関わらず確率は更新
+        // ★ 本番は真ランダムウォーク（反射境界）：選択有無に関わらず確率は更新
         pL = rwStepTrue(pL, CONFIG.STEP);
         pR = rwStepTrue(pR, CONFIG.STEP);
 
