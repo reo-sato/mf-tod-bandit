@@ -1,10 +1,11 @@
 /* mf-tod-bandit main (jsPsych v8 UMD)
-   - インストラクション: 静的「確率折れ線」デモ + 実画面を模した遷移（選択→FB→ITI）
+   - インストラクション:
+       * 見本の確率折れ線は「左右が常に逆方向に動く」擬似系列（セッション別seed）で明瞭化
+       * 本番セッション(morning/evening)のインストラクションは簡易版に切替
    - 目的意識の明示（課題全体の報酬最大化）
-   - 選択に制限時間（デッドライン）を追加：時間切れは報酬0で進行
+   - 選択に制限時間（デッドライン）：時間切れは報酬0で進行
    - キー操作のみ（F=左 / J=右）
-   - ★ 本番の報酬確率は “真のランダムウォーク”（Math.random, 非シード）
-   - ★ インストラクションの折れ線は「セッション別 seed の擬似乱数」で生成（見本用）
+   - 本番の環境確率は 真のランダムウォーク（Math.random, 非シード）
    - Firebase保存（失敗時はCSVフォールバック）
 */
 
@@ -32,7 +33,7 @@ const PID = getParam('pid', `P${Math.random().toString(36).slice(2,8)}`);
 // 試行数
 const TOTAL_TRIALS = (SESSION === 'instruction') ? CONFIG.INSTR_PRACTICE_N : CONFIG.N_TRIALS;
 
-// ★ 非シード：Math.random を用いた真ランダム（再現性なし）
+// ---- 本番：真ランダムウォーク（非シード） ----
 function randRange(lo, hi){ return lo + (hi - lo) * Math.random(); }
 function reflect(v, lo, hi){ if(v<lo) v = lo + (lo - v); if(v>hi) v = hi - (v - hi); return Math.max(lo, Math.min(hi, v)); }
 function rwStepTrue(p, step){
@@ -72,26 +73,31 @@ function stimBlockHTML(side, selected=false){
   `;
 }
 
-/* ==== インストラクション用・静的折れ線デモ（セッション別 seed の擬似乱数） ==== */
-// utils.js の makeRng を使用
+/* ==== インストラクション用・静的折れ線デモ（“逆行”を強調：常に反対符号） ==== */
+// utils.js の makeRng を使用（セッション別の固定見本）
 function genDemoSeries(session, n){
-  const rng = makeRng(`demo:${session||'na'}`); // morning/evening で異なる見本
+  const rng = makeRng(`demo:${session||'na'}`);
   const step = CONFIG.DEMO_STEP;
-  const rand = () => rng();
   const lo = P_LO, hi = P_HI;
-  let l = lo + (hi - lo) * rand();
-  let r = lo + (hi - lo) * rand();
+
+  // 初期値は中心を挟んで左右に配置（乖離を確保）
+  const mid = (lo + hi) / 2;
+  let l = mid - 0.15 + (rng()-0.5)*0.04; // だいたい 0.35 付近
+  let r = mid + 0.15 + (rng()-0.5)*0.04; // だいたい 0.65 付近
+  l = reflect(l, lo, hi); r = reflect(r, lo, hi);
+
   const L=[l], R=[r];
   for(let i=1;i<n;i++){
-    const s1 = (rand() < 0.5 ? -step : step);
-    const s2 = (rand() < 0.5 ? -step : step);
-    l = reflect(l + s1, lo, hi);
-    r = reflect(r + s2, lo, hi);
-    // 視認性のための軽い乖離確保
+    // 逆行を明確化：同じ大きさで符号だけ反転
+    const s = (rng()<0.5 ? -step : step);
+    l = reflect(l + s, lo, hi);
+    r = reflect(r - s, lo, hi);
+
+    // 乖離が小さくなりすぎたら再度開く
     const gap = Math.abs(l - r);
-    if (gap < 0.12){
-      if (l < r) { l = reflect(l - 0.01, lo, hi); r = reflect(r + 0.01, lo, hi); }
-      else       { r = reflect(r - 0.01, lo, hi); l = reflect(l + 0.01, lo, hi); }
+    if (gap < 0.18){
+      if (l < r) { l = reflect(l - 0.012, lo, hi); r = reflect(r + 0.012, lo, hi); }
+      else       { r = reflect(r - 0.012, lo, hi); l = reflect(l + 0.012, lo, hi); }
     }
     L.push(l); R.push(r);
   }
@@ -181,74 +187,76 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // --- Instruction pages ---
+  // === Instruction pages ===
   const demoHTML = buildDemoChartHTML(genDemoSeries(SESSION, CONFIG.DEMO_POINTS));
 
-  // ① 概要
-  const pageIntro =
-    (SESSION === 'instruction'
-      ? `<h2>インストラクション</h2>
-         <p>左右の選択肢は<b>図形</b>（例：○と△）で表示され、<b>F=左 / J=右</b>で選択します。</p>
-         <p>各アームの当たり確率は時間とともに<b>ゆっくり変化</b>します（${P_LO.toFixed(2)}–${P_HI.toFixed(2)}）。</p>
-         <p>報酬は <b>当たり=1 / はずれ=0</b> です。</p>`
-      : `<h2>2アーム課題</h2>
-         <p>左右の選択肢は<b>図形</b>（例：○と△）で表示され、<b>F=左 / J=右</b>で選択します。</p>
-         <p>各アームの当たり確率は時間とともに<b>ゆっくり変化</b>します（${P_LO.toFixed(2)}–${P_HI.toFixed(2)}）。</p>
-         <p>報酬は <b>当たり=1 / はずれ=0</b> です。</p>`);
-
-  // ② 目的意識
+  // 共通テキスト
   const pagePurpose =
     `<h3>この課題の目的</h3>
      <p>どちらの選択肢が<b>より当たりやすい</b>かを試行を通して<b>学習</b>し、</p>
-     <p><b>課題全体</b>で獲得できる<b>報酬（当たり=1）を最大化</b>することを目指してください。</p>
-     <p class="small">当たり確率は試行ごとに緩やかに変動します。過去の結果を手掛かりに、より期待値の高い選択を続けるのがポイントです。</p>`;
+     <p><b>課題全体</b>で獲得できる<b>報酬（当たり=1）を最大化</b>することを目指してください。</p>`;
 
-  // ③ 制限時間の明示
   const pageDeadline =
     `<h3>選択の制限時間</h3>
      <p>各試行の<b>選択には制限時間</b>があります（<b>約 ${CONFIG.DECISION_MS} ms</b>）。</p>
-     <p><b>時間内に F/J のキー入力がない場合</b>は、<b>時間切れ</b>として扱い、その試行の報酬は<b>0</b>になります。</p>
-     <p class="small">時間切れの場合でも次の試行へ自動的に進みます（当たり確率の変動は継続します）。</p>`;
+     <p><b>時間内に F/J のキー入力がない場合</b>は<b>時間切れ</b>となり、その試行の報酬は<b>0</b>です。</p>`;
 
-  // ④ 確率デモ（静的・seed付き見本）
-  const pageDemo =
-    `<p>当たり確率（${P_LO.toFixed(2)}–${P_HI.toFixed(2)}）は、下のように<b>ゆっくり変動</b>します（見本）。</p>
-     ${demoHTML}
-     <p class="small" style="margin-top:6px;">※ この折れ線は<b>見本（セッションごとに固定）</b>です。本番では確率は表示されません。</p>`;
+  // ---- 詳細版（instruction セッションのみ） ----
+  const pagesInstruction = (() => {
+    const pageIntro =
+      `<h2>インストラクション</h2>
+       <p>左右の選択肢は<b>図形</b>（例：○と△）で表示され、<b>F=左 / J=右</b>で選択します。</p>
+       <p>各アームの当たり確率は時間とともに<b>ゆっくり変化</b>します（${P_LO.toFixed(2)}–${P_HI.toFixed(2)}）。</p>
+       <p>報酬は <b>当たり=1 / はずれ=0</b> です。</p>`;
 
-  // ⑤ 模擬：選択画面（このページは「次へ」で遷移）
-  const pageMockChoice =
-    `<div class="mock-title">【模擬】選択画面</div>
-     <div class="small">実際の課題では <b>F=左 / J=右</b> で即時に選択が確定します（<b>制限時間 約 ${CONFIG.DECISION_MS}ms</b>）。</div>
-     <div class="choice-row" style="gap:96px; margin-top:16px;">
-       ${stimBlockHTML('left')}
-       ${stimBlockHTML('right')}
-     </div>
-     <div class="mock-note">※ 本インストラクションでは<b>ボタン（次へ）</b>で遷移します。</div>`;
+    const pageDemo =
+      `<p>当たり確率（${P_LO.toFixed(2)}–${P_HI.toFixed(2)}）は、下のように<b>ゆっくり変動</b>します（見本）。</p>
+       ${demoHTML}
+       <p class="small" style="margin-top:6px;">※ この折れ線は<b>見本（セッションごとに固定）</b>です。本番では確率は表示されません。</p>`;
 
-  // ⑥ 模擬：フィードバック画面（duration は文言で）
-  const pageMockFeedback =
-    `<div class="mock-title">【模擬】フィードバック画面</div>
-     <div class="jspsych-content"><div class="feedback win">✓ +1</div></div>
-     <div class="mock-note">実際の課題では <b>約 ${CONFIG.FEEDBACK_MS}ms</b> 提示されます。</div>`;
+    const pageMockChoice =
+      `<div class="mock-title">【模擬】選択画面</div>
+       <div class="small">実際の課題では <b>F=左 / J=右</b> で即時に選択が確定します（<b>制限時間 約 ${CONFIG.DECISION_MS}ms</b>）。</div>
+       <div class="choice-row" style="gap:96px; margin-top:16px;">
+         ${stimBlockHTML('left')}
+         ${stimBlockHTML('right')}
+       </div>
+       <div class="mock-note">※ 本インストラクションでは<b>ボタン（次へ）</b>で遷移します。</div>`;
 
-  // ⑦ 模擬：ITI 画面（空白・duration は文言で）
-  const pageMockITI =
-    `<div class="mock-title">【模擬】ITI（休止）</div>
-     <div class="mock-blank">（空白）</div>
-     <div class="mock-note">実際の課題では <b>約 ${CONFIG.ITI_MS}ms</b> の空白画面が表示されます。</div>`;
+    const pageMockFeedback =
+      `<div class="mock-title">【模擬】フィードバック画面</div>
+       <div class="jspsych-content"><div class="feedback win">✓ +1</div></div>
+       <div class="mock-note">実際の課題では <b>約 ${CONFIG.FEEDBACK_MS}ms</b> 提示されます。</div>`;
 
-  // ⑧ ここから本試行の案内
-  const pageReady =
-    `<p>${SESSION === 'instruction'
-        ? `このセッションの練習試行数は <b>${TOTAL_TRIALS}</b> です。`
-        : `このセッションは <b>${TOTAL_TRIALS}</b> 試行です。`
-      }</p>
-     <p>準備ができたら「次へ」を押してください（本番では選択→フィードバック→ITI が自動で進行します）。</p>`;
+    const pageMockITI =
+      `<div class="mock-title">【模擬】ITI（休止）</div>
+       <div class="mock-blank">（空白）</div>
+       <div class="mock-note">実際の課題では <b>約 ${CONFIG.ITI_MS}ms</b> の空白画面が表示されます。</div>`;
+
+    const pageReady =
+      `<p>このセッションの練習試行数は <b>${TOTAL_TRIALS}</b> です。</p>
+       <p>準備ができたら「次へ」を押してください（本番では選択→フィードバック→ITI が自動で進行します）。</p>`;
+
+    return [pageIntro, pagePurpose, pageDeadline, pageDemo, pageMockChoice, pageMockFeedback, pageMockITI, pageReady];
+  })();
+
+  // ---- 簡易版（morning/evening の本番用）----
+  const pagesSimple = (() => {
+    const pageSimpleIntro =
+      `<h2>2アーム課題</h2>
+       <p><b>F=左 / J=右</b>で選択し、<b>当たり（=1）をできるだけ多く</b>集めてください。</p>
+       <p>当たり確率は<b>時間とともに緩やかに変化</b>します（${P_LO.toFixed(2)}–${P_HI.toFixed(2)}）。</p>`;
+
+    const pageSimpleKeys =
+      `<p><b>選択の制限時間</b>は約 <b>${CONFIG.DECISION_MS}ms</b> です。時間切れ時はその試行の報酬は<b>0</b>になります。</p>
+       <p>準備ができたら「次へ」を押してください。</p>`;
+
+    return [pageSimpleIntro, pagePurpose, pageDeadline, pageSimpleKeys];
+  })();
 
   const instructions = {
     type: jsPsychInstructions,
-    pages: [pageIntro, pagePurpose, pageDeadline, pageDemo, pageMockChoice, pageMockFeedback, pageMockITI, pageReady],
+    pages: (SESSION === 'instruction') ? pagesInstruction : pagesSimple,
     show_clickable_nav: true,
     button_label_next: '次へ',
     button_label_previous: '戻る'
@@ -259,11 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return {
       type: jsPsychHtmlKeyboardResponse,
       stimulus: () => `
-        <div class="small">
-          PID: ${PID} / Session: ${SESSION} / Trial ${tIndex+1}
-          / pL=${pL.toFixed(2)} pR=${pR.toFixed(2)}
-        </div>
-        <div class="choice-row" style="gap:96px; margin-top:24px;">
+        <div class="choice-row" style="gap:96px; margin-top:8px;">
           ${stimBlockHTML('left')}
           ${stimBlockHTML('right')}
         </div>
@@ -284,11 +288,10 @@ document.addEventListener('DOMContentLoaded', () => {
           choice = (key === 'f') ? 'L' : 'R';
           const pChosen = (choice==='L') ? pL : pR;
 
-          // ★ 報酬サンプルは Math.random（非シード）
+          // 報酬サンプル（非シード）
           reward = (Math.random() < pChosen) ? 1 : 0;
         } else {
-          // 時間切れ：報酬0、選択なし
-          choice = null;
+          choice = null; // 時間切れ
           reward = 0;
         }
 
@@ -300,7 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
           stim_left: STIM_MAP.left, stim_right: STIM_MAP.right
         });
 
-        // ★ 本番は真ランダムウォーク（反射境界）：選択有無に関わらず確率は更新
+        // 真ランダムウォーク（反射境界）
         pL = rwStepTrue(pL, CONFIG.STEP);
         pR = rwStepTrue(pR, CONFIG.STEP);
 
@@ -334,7 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const timedout = !!last.__timeout;
         if (timedout) {
           return `
-            <div class="choice-row" style="gap:96px; margin-top:18px;">
+            <div class="choice-row" style="gap:96px; margin-top:12px;">
               ${stimBlockHTML('left', false)}
               ${stimBlockHTML('right', false)}
             </div>
@@ -344,7 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const ch = last.__choice || 'L';
           const lSel = (ch === 'L'), rSel = (ch === 'R');
           return `
-            <div class="choice-row" style="gap:96px; margin-top:18px;">
+            <div class="choice-row" style="gap:96px; margin-top:12px;">
               ${stimBlockHTML('left', lSel)}
               ${stimBlockHTML('right', rSel)}
             </div>
