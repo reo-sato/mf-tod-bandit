@@ -3,7 +3,8 @@
    - 目的意識の明示（課題全体の報酬最大化）
    - 選択に制限時間（デッドライン）を追加：時間切れは報酬0で進行
    - キー操作のみ（F=左 / J=右）
-   - 環境RW＆報酬サンプルは「朝/晩/被験者」でシード分離
+   - ★ 報酬確率は “真のランダムウォーク”（Math.random, 非シード）に変更
+   - ★ 初期確率は範囲内の一様乱数で設定
    - Firebase保存（失敗時はCSVフォールバック）
 */
 
@@ -11,7 +12,7 @@ const CONFIG = {
   N_TRIALS: 400,           // 本試行
   INSTR_PRACTICE_N: 10,    // instruction セッションの練習試行（0で説明のみは 0）
   STEP: 0.03,              // 環境RW幅（反射境界 0.25–0.75）
-  DECISION_MS: 2000,       // ★選択の制限時間（ms）
+  DECISION_MS: 2000,       // 選択の制限時間（ms）
   ACK_MS: 500,             // 選択確認(ACK)
   FEEDBACK_MS: 800,        // フィードバック
   ITI_MS: 500,             // ITI
@@ -19,6 +20,9 @@ const CONFIG = {
   DEMO_POINTS: 80,         // デモ折れ線（静的）
   DEMO_STEP: 0.025
 };
+
+// 当たり確率の下限・上限
+const P_LO = 0.25, P_HI = 0.75;
 
 // --- URL パラメータ・セッション種別 ---
 const RAW_SESSION = (getParam('session','morning')||'').toLowerCase();
@@ -28,12 +32,17 @@ const PID = getParam('pid', `P${Math.random().toString(36).slice(2,8)}`);
 // 試行数
 const TOTAL_TRIALS = (SESSION === 'instruction') ? CONFIG.INSTR_PRACTICE_N : CONFIG.N_TRIALS;
 
-// 乱数（セッションごとに分離）
-const rngEnv = makeRng(`env:${PID}:${SESSION}`); // 環境RW
-const rngRew = makeRng(`rew:${PID}:${SESSION}`); // 報酬サンプル
+// ★ 非シード：Math.random を用いた真ランダム（再現性なし）
+function randRange(lo, hi){ return lo + (hi - lo) * Math.random(); }
+function reflect(v, lo, hi){ if(v<lo) v = lo + (lo - v); if(v>hi) v = hi - (v - hi); return Math.max(lo, Math.min(hi, v)); }
+function rwStepTrue(p, step){
+  const s = (Math.random() < 0.5 ? -step : step);
+  return reflect(p + s, P_LO, P_HI);
+}
 
-// 環境確率（本番用）
-let pL = 0.5, pR = 0.5;
+// 環境確率（★初期値は範囲内ランダム）
+let pL = randRange(P_LO, P_HI);
+let pR = randRange(P_LO, P_HI);
 
 // ログ
 const rows = [];
@@ -64,27 +73,28 @@ function stimBlockHTML(side, selected=false){
 }
 
 /* ==== 静的・折れ線デモ ==== */
-function reflect(v, lo, hi){ if(v<lo) v=lo+(lo-v); if(v>hi) v=hi-(v-hi); return Math.max(lo, Math.min(hi, v)); }
-function genDemoSeries(session, n){
-  const rng = makeRng(`demo:${session}`); // 朝晩で別系列
-  const lo=0.25, hi=0.75, step=CONFIG.DEMO_STEP;
-  let l=0.30, r=0.70;
+// ★ デモ系列も真ランダム（Math.random）で生成（朝/晩で固定差を設けない）
+function genDemoSeries(n){
+  const step = CONFIG.DEMO_STEP;
+  let l = randRange(P_LO, P_HI);
+  let r = randRange(P_LO, P_HI);
   const L=[l], R=[r];
   for(let i=1;i<n;i++){
-    const s = (rng()<0.5 ? -step : step);
-    l = reflect(l + s, lo, hi);
-    r = reflect(r - s, lo, hi);
-    const gap = Math.abs(l-r);
+    l = rwStepTrue(l, step);
+    r = rwStepTrue(r, step);
+    // 視認性のため、必要に応じて乖離を少し確保（任意・軽微）
+    const gap = Math.abs(l - r);
     if (gap < 0.12){
-      if (l < r) { l = Math.max(lo, l - 0.01); r = Math.min(hi, r + 0.01); }
-      else       { r = Math.max(lo, r - 0.01); l = Math.min(hi, l + 0.01); }
+      l = reflect(l - 0.01, P_LO, P_HI);
+      r = reflect(r + 0.01, P_LO, P_HI);
     }
     L.push(l); R.push(r);
   }
   return {L,R};
 }
+
 function buildDemoChartHTML(series){
-  const plotW=600, yTop=20, yBot=200, lo=0.25, range=0.5;
+  const plotW=600, yTop=20, yBot=200, lo=P_LO, range=P_HI-P_LO;
   const yMap = (p)=> { const t=(p-lo)/range; return yBot - t*(yBot-yTop); };
   const N = series.L.length;
   const ptsL=[], ptsR=[];
@@ -102,9 +112,9 @@ function buildDemoChartHTML(series){
             <line x1="0" y1="110" x2="${plotW}" y2="110"></line>
             <line x1="0" y1="${yBot}" x2="${plotW}" y2="${yBot}"></line>
           </g>
-          <text class="axisLabel" x="-8" y="24"  text-anchor="end">0.75</text>
-          <text class="axisLabel" x="-8" y="114" text-anchor="end">0.50</text>
-          <text class="axisLabel" x="-8" y="${yBot+4}" text-anchor="end">0.25</text>
+          <text class="axisLabel" x="-8" y="24"  text-anchor="end">${P_HI.toFixed(2)}</text>
+          <text class="axisLabel" x="-8" y="114" text-anchor="end">${(lo+range/2).toFixed(2)}</text>
+          <text class="axisLabel" x="-8" y="${yBot+4}" text-anchor="end">${P_LO.toFixed(2)}</text>
           <polyline class="lineL" points="${ptsL.join(' ')}"></polyline>
           <polyline class="lineR" points="${ptsR.join(' ')}"></polyline>
           <line class="grid" x1="0" y1="${yBot}" x2="${plotW}" y2="${yBot}"></line>
@@ -167,18 +177,18 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // --- Instruction pages ---
-  const demoHTML = buildDemoChartHTML(genDemoSeries(SESSION, CONFIG.DEMO_POINTS));
+  const demoHTML = buildDemoChartHTML(genDemoSeries(CONFIG.DEMO_POINTS));
 
   // ① 概要
   const pageIntro =
     (SESSION === 'instruction'
       ? `<h2>インストラクション</h2>
          <p>左右の選択肢は<b>図形</b>（例：○と△）で表示され、<b>F=左 / J=右</b>で選択します。</p>
-         <p>各アームの当たり確率は時間とともに<b>ゆっくり変化</b>します（0.25–0.75）。</p>
+         <p>各アームの当たり確率は時間とともに<b>ゆっくり変化</b>します（${P_LO.toFixed(2)}–${P_HI.toFixed(2)}）。</p>
          <p>報酬は <b>当たり=1 / はずれ=0</b> です。</p>`
       : `<h2>2アーム課題</h2>
          <p>左右の選択肢は<b>図形</b>（例：○と△）で表示され、<b>F=左 / J=右</b>で選択します。</p>
-         <p>各アームの当たり確率は時間とともに<b>ゆっくり変化</b>します（0.25–0.75）。</p>
+         <p>各アームの当たり確率は時間とともに<b>ゆっくり変化</b>します（${P_LO.toFixed(2)}–${P_HI.toFixed(2)}）。</p>
          <p>報酬は <b>当たり=1 / はずれ=0</b> です。</p>`);
 
   // ② 目的意識
@@ -186,20 +196,20 @@ document.addEventListener('DOMContentLoaded', () => {
     `<h3>この課題の目的</h3>
      <p>どちらの選択肢が<b>より当たりやすい</b>かを試行を通して<b>学習</b>し、</p>
      <p><b>課題全体</b>で獲得できる<b>報酬（当たり=1）を最大化</b>することを目指してください。</p>
-     <p class="small">各アームの当たり確率は時々刻々と変化します。過去の結果を手掛かりに、より期待値の高い選択を続けるのがポイントです。</p>`;
+     <p class="small">当たり確率は試行ごとに緩やかに変動します。過去の結果を手掛かりに、より期待値の高い選択を続けるのがポイントです。</p>`;
 
   // ③ 制限時間の明示
   const pageDeadline =
     `<h3>選択の制限時間</h3>
      <p>各試行の<b>選択には制限時間</b>があります（<b>約 ${CONFIG.DECISION_MS} ms</b>）。</p>
      <p><b>時間内に F/J のキー入力がない場合</b>は、<b>時間切れ</b>として扱い、その試行の報酬は<b>0</b>になります。</p>
-     <p class="small">時間切れの場合でも次の試行へ自動的に進みます（環境確率はゆっくり変動し続けます）。</p>`;
+     <p class="small">時間切れの場合でも次の試行へ自動的に進みます（当たり確率の変動は継続します）。</p>`;
 
   // ④ 確率デモ（静的）
   const pageDemo =
-    `<p>当たり確率（0.25–0.75）は、下のように<b>ゆっくり変動</b>します（デモ）。</p>
+    `<p>当たり確率（${P_LO.toFixed(2)}–${P_HI.toFixed(2)}）は、下のように<b>ゆっくり変動</b>します（デモ）。</p>
      ${demoHTML}
-     <p class="small" style="margin-top:6px;">※ 本番では確率は表示されません。朝/夜セッションでは<b>異なる擬似乱数系列</b>が用いられます。</p>`;
+     <p class="small" style="margin-top:6px;">※ 本番では確率は表示されません。</p>`;
 
   // ⑤ 模擬：選択画面（このページは「次へ」で遷移）
   const pageMockChoice =
@@ -258,7 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
       `,
       choices: ['f','j'],
       response_ends_trial: true,
-      trial_duration: CONFIG.DECISION_MS, // ★デッドライン
+      trial_duration: CONFIG.DECISION_MS, // デッドライン
       on_finish: (data) => {
         const isTimeout = (data.response === null || data.response === undefined);
         let choice = null;
@@ -268,7 +278,9 @@ document.addEventListener('DOMContentLoaded', () => {
           const key = String(data.response || '').toLowerCase();
           choice = (key === 'f') ? 'L' : 'R';
           const pChosen = (choice==='L') ? pL : pR;
-          reward = (rngRew() < pChosen) ? 1 : 0;
+
+          // ★ 報酬サンプルも Math.random（非シード）
+          reward = (Math.random() < pChosen) ? 1 : 0;
         } else {
           // 時間切れ：報酬0、選択なし
           choice = null;
@@ -283,9 +295,9 @@ document.addEventListener('DOMContentLoaded', () => {
           stim_left: STIM_MAP.left, stim_right: STIM_MAP.right
         });
 
-        // 環境は試行ごとに緩やかに変化（選択の有無に関わらず）
-        pL = rwStepSeed(pL, CONFIG.STEP, rngEnv);
-        pR = rwStepSeed(pR, CONFIG.STEP, rngEnv);
+        // ★ 真ランダムウォーク（反射境界）：選択有無に関わらず確率は更新
+        pL = rwStepTrue(pL, CONFIG.STEP);
+        pR = rwStepTrue(pR, CONFIG.STEP);
 
         // 後段の画面用の付帯情報
         if (isTimeout) {
