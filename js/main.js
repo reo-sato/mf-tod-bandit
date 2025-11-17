@@ -1,7 +1,7 @@
 /* mf-tod-bandit main (jsPsych v8 UMD)
    - インストラクション:
        * 見本の確率折れ線は「左右が常に逆方向に動く」擬似系列（セッション別seed）で明瞭化
-       * 本番セッション(morning/evening)のインストラクションは簡易版に切替
+       * ★本番(morning/evening)のセッション前説明は極小テキストに簡略化
    - 目的意識の明示（課題全体の報酬最大化）
    - 選択に制限時間（デッドライン）：時間切れは報酬0で進行
    - キー操作のみ（F=左 / J=右）
@@ -10,7 +10,7 @@
 */
 
 const CONFIG = {
-  N_TRIALS: 200,           // 本試行
+  N_TRIALS: 400,           // 本試行
   INSTR_PRACTICE_N: 10,    // instruction セッションの練習試行（0で説明のみは 0）
   STEP: 0.03,              // 環境RW幅（反射境界 0.25–0.75）
   DECISION_MS: 2000,       // 選択の制限時間（ms）
@@ -82,16 +82,15 @@ function genDemoSeries(session, n){
 
   // 初期値は中心を挟んで左右に配置（乖離を確保）
   const mid = (lo + hi) / 2;
-  let l = mid - 0.15 + (rng()-0.5)*0.04; // だいたい 0.35 付近
-  let r = mid + 0.15 + (rng()-0.5)*0.04; // だいたい 0.65 付近
+  let l = mid - 0.15 + (rng()-0.5)*0.04;
+  let r = mid + 0.15 + (rng()-0.5)*0.04;
   l = reflect(l, lo, hi); r = reflect(r, lo, hi);
 
   const L=[l], R=[r];
   for(let i=1;i<n;i++){
-    // 逆行を明確化：同じ大きさで符号だけ反転
     const s = (rng()<0.5 ? -step : step);
     l = reflect(l + s, lo, hi);
-    r = reflect(r - s, lo, hi);
+    r = reflect(r - s, lo, hi); // 逆符号で「逆行」を明確化
 
     // 乖離が小さくなりすぎたら再度開く
     const gap = Math.abs(l - r);
@@ -190,24 +189,23 @@ document.addEventListener('DOMContentLoaded', () => {
   // === Instruction pages ===
   const demoHTML = buildDemoChartHTML(genDemoSeries(SESSION, CONFIG.DEMO_POINTS));
 
-  // 共通テキスト
-  const pagePurpose =
-    `<h3>この課題の目的</h3>
-     <p>どちらの選択肢が<b>より当たりやすい</b>かを試行を通して<b>学習</b>し、</p>
-     <p><b>課題全体</b>で獲得できる<b>報酬（当たり=1）を最大化</b>することを目指してください。</p>`;
-
-  const pageDeadline =
-    `<h3>選択の制限時間</h3>
-     <p>各試行の<b>選択には制限時間</b>があります（<b>約 ${CONFIG.DECISION_MS} ms</b>）。</p>
-     <p><b>時間内に F/J のキー入力がない場合</b>は<b>時間切れ</b>となり、その試行の報酬は<b>0</b>です。</p>`;
-
-  // ---- 詳細版（instruction セッションのみ） ----
+  // ---- instruction セッション（詳細版）----
   const pagesInstruction = (() => {
     const pageIntro =
       `<h2>インストラクション</h2>
        <p>左右の選択肢は<b>図形</b>（例：○と△）で表示され、<b>F=左 / J=右</b>で選択します。</p>
        <p>各アームの当たり確率は時間とともに<b>ゆっくり変化</b>します（${P_LO.toFixed(2)}–${P_HI.toFixed(2)}）。</p>
        <p>報酬は <b>当たり=1 / はずれ=0</b> です。</p>`;
+
+    const pagePurpose =
+      `<h3>この課題の目的</h3>
+       <p>どちらの選択肢が<b>より当たりやすい</b>かを試行を通して<b>学習</b>し、</p>
+       <p><b>課題全体</b>で獲得できる<b>報酬（当たり=1）を最大化</b>することを目指してください。</p>`;
+
+    const pageDeadline =
+      `<h3>選択の制限時間</h3>
+       <p>各試行の<b>選択には制限時間</b>があります（<b>約 ${CONFIG.DECISION_MS} ms</b>）。</p>
+       <p><b>時間内に F/J のキー入力がない場合</b>は<b>時間切れ</b>となり、その試行の報酬は<b>0</b>です。</p>`;
 
     const pageDemo =
       `<p>当たり確率（${P_LO.toFixed(2)}–${P_HI.toFixed(2)}）は、下のように<b>ゆっくり変動</b>します（見本）。</p>
@@ -240,19 +238,11 @@ document.addEventListener('DOMContentLoaded', () => {
     return [pageIntro, pagePurpose, pageDeadline, pageDemo, pageMockChoice, pageMockFeedback, pageMockITI, pageReady];
   })();
 
-  // ---- 簡易版（morning/evening の本番用）----
-  const pagesSimple = (() => {
-    const pageSimpleIntro =
-      `<h2>2アーム課題</h2>
-       <p><b>F=左 / J=右</b>で選択し、<b>当たり（=1）をできるだけ多く</b>集めてください。</p>
-       <p>当たり確率は<b>時間とともに緩やかに変化</b>します（${P_LO.toFixed(2)}–${P_HI.toFixed(2)}）。</p>`;
-
-    const pageSimpleKeys =
-      `<p><b>選択の制限時間</b>は約 <b>${CONFIG.DECISION_MS}ms</b> です。時間切れ時はその試行の報酬は<b>0</b>になります。</p>
-       <p>準備ができたら「次へ」を押してください。</p>`;
-
-    return [pageSimpleIntro, pagePurpose, pageDeadline, pageSimpleKeys];
-  })();
+  // ---- 本番（morning/evening）簡易版（★極小テキスト）----
+  const pagesSimple = [
+    `<h2>まもなく開始</h2>
+     <p>これから本番セッションを開始します。準備ができたら「次へ」を押してください。</p>`
+  ];
 
   const instructions = {
     type: jsPsychInstructions,
